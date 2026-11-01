@@ -18,16 +18,14 @@ export function applyScanRequest(request: ScanRequest): {
   analysis?: Analysis;
 } {
   if (request.op === 'parse') {
-    const parsed = parseStatement(
-      request.text,
-      request.source,
-      request.mapping,
-      request.currency ?? 'INR',
-      request.delimiter,
-    );
     return {
-      parsed,
-      analysis: parsed.transactions.length > 0 ? analyze(parsed.transactions) : undefined,
+      parsed: parseStatement(
+        request.text,
+        request.source,
+        request.mapping,
+        request.currency ?? 'INR',
+        request.delimiter,
+      ),
     };
   }
   return { analysis: analyze(request.transactions, { today: request.today }) };

@@ -1,7 +1,8 @@
+import { parseStatement, type ColumnMapping, type StatementParse } from './csv';
 import { analyze } from './engine';
 import { applyScanRequest, type ScanRequest } from './scanJob';
 import type { Analysis, Transaction } from './model';
-import type { ColumnMapping, StatementParse } from './csv';
+import { spreadsheetToCsv } from './spreadsheet';
 
 type Response = {
   id: number;
@@ -9,6 +10,7 @@ type Response = {
   error?: string;
   parsed?: StatementParse;
   analysis?: Analysis;
+  text?: string;
 };
 
 let worker: Worker | null = null;
@@ -38,7 +40,9 @@ function getWorker(): Worker | null {
   return worker;
 }
 
-function request(message: ScanRequest): Promise<Response> {
+function request(
+  message: ScanRequest | { op: 'sheet'; data: ArrayBuffer; source: string },
+): Promise<Response> {
   const current = getWorker();
   if (!current) return Promise.reject(new Error('No worker'));
   const id = nextId;
@@ -74,6 +78,21 @@ export async function parseOffThread(
       mapping: options?.mapping,
       currency: options?.currency,
     }).parsed!;
+  }
+}
+
+export async function parseSpreadsheetOffThread(
+  data: ArrayBuffer,
+  source: string,
+): Promise<{ parsed: StatementParse; text: string }> {
+  const copy = data.slice(0);
+  try {
+    const response = await request({ op: 'sheet', data: copy, source });
+    if (!response.parsed || response.text == null) throw new Error('Empty sheet');
+    return { parsed: response.parsed, text: response.text };
+  } catch {
+    const text = await spreadsheetToCsv(data);
+    return { parsed: parseStatement(text, source), text };
   }
 }
 

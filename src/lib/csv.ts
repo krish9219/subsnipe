@@ -381,7 +381,6 @@ export function detectColumns(rows: string[][]): ColumnDetection {
   const headers = rows[headerIndex] ?? [];
   const format = matchFormat(headers);
   const mapping = assignColumns(headers, headerIndex);
-  const defaultCurrency = format?.defaultCurrency ?? 'INR';
   if (format?.signConvention) mapping.signConvention = format.signConvention;
   if (format && format.dateOrder !== 'auto') mapping.dateOrder = format.dateOrder;
   const hasAmount = mapping.debit != null || mapping.credit != null || mapping.amount != null;
@@ -402,6 +401,7 @@ export function detectColumns(rows: string[][]): ColumnDetection {
     const parsed = sample.filter((row) => parseDate(row[mapping.date!] ?? '', mapping.dateOrder));
     if (sample.length >= 4 && parsed.length / sample.length < 0.5) needsMapping = true;
   }
+  const defaultCurrency = format?.defaultCurrency ?? guessCurrency(rows, mapping);
   return {
     headerIndex,
     mapping,
@@ -449,13 +449,10 @@ export function transactionsFromMapping(
   const transactions: Transaction[] = [];
   let skipped = 0;
   const amountIndex = mapping.amount;
-  const signed =
-    amountIndex != null &&
-    body.some((row) => {
-      const raw = (row[amountIndex] ?? '').trim();
-      const parsed = parseMoneyCell(raw);
-      return Boolean(parsed && parsed.suffix === 'dr' && /^[-(]/.test(raw));
-    });
+  const autoSign =
+    mapping.signConvention === 'auto' && amountIndex != null
+      ? inferAutoSign(body, amountIndex, mapping.description)
+      : null;
 
   body.forEach((row, index) => {
     const date = parseDate(cell(row, mapping.date), mapping.dateOrder);
@@ -494,7 +491,9 @@ export function transactionsFromMapping(
       amount = parsed.amount;
       currency = currency ?? parsed.currency;
       const fromColumn = directionFrom(cell(row, mapping.direction));
-      direction = fromColumn ?? signedDirection(parsed.suffix, mapping.signConvention, signed);
+      direction =
+        fromColumn ??
+        signedDirection(parsed.suffix, autoSign ?? mapping.signConvention, autoSign == null);
     }
 
     if (!direction || amount <= 0 || amount > 10_000_000) {
@@ -518,6 +517,49 @@ export function transactionsFromMapping(
 
 export function isIsoCurrency(value: string): boolean {
   return /^[A-Z]{3}$/.test(value);
+}
+
+export function inferAutoSign(
+  rows: string[][],
+  amountIndex: number,
+  descriptionIndex: number | null,
+): 'debit-negative' | 'debit-positive' {
+  let positive = 0;
+  let negative = 0;
+  let paymentLike = 0;
+  for (const row of rows) {
+    const raw = (row[amountIndex] ?? '').trim();
+    const parsed = parseMoneyCell(raw);
+    if (!parsed || parsed.amount === 0) continue;
+    const isNegative = parsed.suffix === 'dr' && /^[-(]/.test(raw);
+    if (!isNegative && parsed.suffix !== 'cr') {
+      positive += 1;
+      continue;
+    }
+    negative += 1;
+    const description = descriptionIndex == null ? '' : (row[descriptionIndex] ?? '');
+    if (/payment|thank|refund|reversal|autopay|received|\bcr\b/i.test(description))
+      paymentLike += 1;
+  }
+  if (negative === 0) return 'debit-positive';
+  if (positive > negative && paymentLike >= Math.ceil(negative * 0.6)) return 'debit-positive';
+  return 'debit-negative';
+}
+
+function guessCurrency(rows: string[][], mapping: ColumnMapping): string {
+  const indexes = [mapping.amount, mapping.debit, mapping.credit].filter(
+    (index): index is number => index != null,
+  );
+  const sample = rows.slice(
+    Math.max(mapping.headerIndex, 0) + 1,
+    Math.max(mapping.headerIndex, 0) + 40,
+  );
+  const blob = sample.map((row) => indexes.map((index) => row[index] ?? '').join(' ')).join('\n');
+  if (/\$|\bUSD\b/i.test(blob)) return 'USD';
+  if (/€|\bEUR\b/i.test(blob)) return 'EUR';
+  if (/£|\bGBP\b/i.test(blob)) return 'GBP';
+  if (mapping.dateOrder === 'MDY') return 'USD';
+  return 'INR';
 }
 
 function signedDirection(

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { parseStatement, detectDelimiter, LIMITS } from './csv';
 import { addDaysISO, inferDateOrder, parseDate } from './dates';
-import { analyze, projectSavings } from './engine';
+import { analyze, isRejectedDescriptor, projectSavings } from './engine';
 import {
   passwordWasWrong,
   transactionsFromItems,
@@ -100,6 +100,44 @@ describe('review regressions', () => {
     expect(passwordWasWrong(1)).toBe(false);
   });
 
+  it('infers a headerless PDF deposit from the balance delta', () => {
+    const lines = [
+      '01/04/2026 BALANCE B/F 100000.00',
+      '02/04/2026 UPI CREDIT 50000.00 150000.00',
+      '03/04/2026 NETFLIX 649.00 149351.00',
+    ];
+    const transactions = transactionsFromLines(lines, 'plain.pdf');
+    expect(transactions.find((row) => row.description.includes('CREDIT'))).toMatchObject({
+      amount: 50000,
+      direction: 'credit',
+    });
+    expect(transactions.find((row) => row.description.includes('NETFLIX'))).toMatchObject({
+      amount: 649,
+      direction: 'debit',
+    });
+  });
+
+  it('reads a plain positive-charge Amex file as USD spend', () => {
+    const csv = [
+      'Date,Description,Amount',
+      '03/15/2026,NETFLIX,15.49',
+      '04/15/2026,NETFLIX,15.49',
+      '05/15/2026,NETFLIX,15.49',
+      '05/20/2026,PAYMENT RECEIVED,-100.00',
+    ].join('\n');
+    const parsed = parseStatement(csv, 'amex-plain.csv');
+    expect(parsed.detection.needsMapping).toBe(false);
+    expect(parsed.detection.defaultCurrency).toBe('USD');
+    expect(parsed.transactions.find((row) => row.description === 'NETFLIX')).toMatchObject({
+      direction: 'debit',
+      currency: 'USD',
+      date: '2026-03-15',
+    });
+    expect(parsed.transactions.find((row) => row.description.includes('PAYMENT'))?.direction).toBe(
+      'credit',
+    );
+  });
+
   it('treats Amex charges as debits and Chase amounts without a dollar sign as USD', () => {
     const amex = [
       'Date,Description,Card Member,Account #,Amount',
@@ -175,12 +213,32 @@ describe('review regressions', () => {
       ...monthly('2026-01-08', 4, 20000, 'NEFT-HOUSE RENT LANDLORD'),
       ...monthly('2026-01-09', 4, 15000, 'UPI-RAHUL SHARMA-OKAXIS'),
     ];
-    const analysis = analyze(rows, { today: '2026-06-01' });
+    const analysis = analyze(rows, { today: '2026-05-15' });
     const names = analysis.subscriptions.map((sub) => sub.name.toUpperCase());
     expect(names.join(' ')).not.toMatch(/GROWW|BSE|BAJAJ|LIC|RENT/);
     const rent = analysis.subscriptions.find((sub) => sub.kind === 'possible-transfer');
     expect(rent?.name).toBe('Rahul Sharma');
     expect(projectSavings(analysis, {}).activeCount).toBe(0);
+    const person = analysis.subscriptions.find((sub) => sub.kind === 'possible-transfer');
+    expect(projectSavings(analysis, {}, new Set([person!.id])).activeCount).toBe(1);
+    const fitness = analyze(monthly('2026-03-02', 4, 2500, 'ANYTIME FITNESS INDIRANAGAR'), {
+      today: '2026-07-15',
+    });
+    expect(fitness.subscriptions[0]?.kind).toBe('subscription');
+    const cursor = analyze(monthly('2026-03-02', 4, 40, 'CURSOR AI POWERED', { currency: 'USD' }), {
+      today: '2026-07-15',
+    });
+    expect(cursor.subscriptions[0]?.kind).toBe('subscription');
+    const loan = analyze(monthly('2026-03-02', 4, 12500, 'NACH-DR-HDFC BANK LTD-LN12345'), {
+      today: '2026-07-15',
+    });
+    expect(loan.subscriptions).toHaveLength(0);
+    const zoomcar = analyze(monthly('2026-03-02', 4, 999, 'ZOOMCAR RENT SUBSCRIPTION'), {
+      today: '2026-07-15',
+    });
+    expect(zoomcar.subscriptions[0]?.kind).toBe('subscription');
+    expect(isRejectedDescriptor('ZOOMCAR RENT SUBSCRIPTION')).toBe(false);
+    expect(isRejectedDescriptor('NEFT-HOUSE RENT LANDLORD')).toBe(true);
     expect(
       analysis.subscriptions.every(
         (sub) => sub.kind === 'possible-transfer' || sub.confidence === 'low',
@@ -260,6 +318,7 @@ describe('review regressions', () => {
 
   it('strips UPI handles from unknown payees and only shares known merchant names', () => {
     expect(unknownName('UPI-Rahul Sharma-rahulsharma@okaxis')).toBe('Rahul Sharma');
+    expect(unknownName('UPI-Anil Kumar-Anil')).toBe('Anil Kumar');
     expect(matchMerchant('APPLE.COM/BILL')?.id).toBe('apple-bill');
     expect(matchMerchant('GOOGLE *YOUTUBE*')?.id).toBe('youtube-premium');
     expect(matchMerchant('AIRTEL PAYMENTS BANK')).toBeNull();
@@ -281,6 +340,7 @@ describe('review regressions', () => {
       text: 'Date,Narration,Withdrawal Amt.,Deposit Amt.\n04/01/2026,NETFLIX,649.00,\n',
       source: 'job.csv',
     });
+    expect(parsed.analysis).toBeUndefined();
     expect(parsed.parsed?.transactions[0]?.description).toContain('NETFLIX');
     const lines = ['Date,Narration,Withdrawal Amt.,Deposit Amt.'];
     for (let index = 0; index < LIMITS.maxRows + 1; index += 1) {

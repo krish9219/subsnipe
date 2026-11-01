@@ -137,8 +137,11 @@ export function unknownName(description: string): string {
         !/^\d+$/.test(token),
     );
   const unique: string[] = [];
+  const seen = new Set<string>();
   for (const token of tokens) {
-    if (unique[unique.length - 1] !== token) unique.push(token);
+    if (seen.has(token)) continue;
+    seen.add(token);
+    unique.push(token);
   }
   const withoutGlued = unique.filter((token, index, all) => {
     const rest = all.filter((_, item) => item !== index).join('');

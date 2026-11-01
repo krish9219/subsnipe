@@ -34,7 +34,7 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,mjs,css,html,svg,png,woff2}'],
-        globIgnores: ['**/icon-192.png', '**/icon-512.png'],
+        globIgnores: ['**/icon-192.png', '**/icon-512.png', '**/*xlsx*.js'],
         navigateFallback: 'index.html',
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
         manifestTransforms: [
@@ -60,6 +60,9 @@ export default defineConfig({
       },
     },
   ],
+  worker: {
+    format: 'es',
+  },
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),

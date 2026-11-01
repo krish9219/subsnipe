@@ -108,46 +108,95 @@ function isDateToken(token: string): boolean {
   return parseDate(token, 'auto') != null;
 }
 
+type DraftLine = {
+  date: string;
+  description: string;
+  amount: number;
+  balance: number | null;
+  suffix: 'dr' | 'cr' | null;
+  currency: string | null;
+  anchor: boolean;
+};
+
+function draftFromLine(line: string): DraftLine | null {
+  if (/narration|withdrawal amt|transaction date/i.test(line) && /date/i.test(line)) return null;
+  const parts = line.split(/\s+/).filter(Boolean);
+  const dateIndex = parts.findIndex((part) => isDateToken(part));
+  if (dateIndex < 0) return null;
+  const date = parseDate(parts[dateIndex] ?? '', 'auto');
+  if (!date) return null;
+  const rest = parts.slice(dateIndex + 1);
+  const descriptionParts: string[] = [];
+  const amounts: { amount: number; suffix: 'dr' | 'cr' | null; currency: string | null }[] = [];
+  for (const part of rest) {
+    if (isDateToken(part) || isReferenceToken(part)) continue;
+    const parsed = parseMoneyCell(part);
+    const looksLikeMoney = parsed && /[.,₹$€£]|[A-Z]{3}|\d+\.\d/.test(part);
+    if (parsed && looksLikeMoney && parsed.amount > 0 && parsed.amount < 10_000_000)
+      amounts.push(parsed);
+    else if (amounts.length === 0) descriptionParts.push(part);
+  }
+  if (amounts.length === 0) return null;
+  const description = descriptionParts.join(' ').trim();
+  const anchor =
+    amounts.length === 1 && /\b(balance|b\/f|opening|brought forward)\b/i.test(description);
+  const chosen =
+    amounts.length >= 2 && amounts[amounts.length - 1]!.amount >= amounts[0]!.amount
+      ? amounts[0]!
+      : amounts[amounts.length - 1]!;
+  const balance =
+    amounts.length >= 2 ? amounts[amounts.length - 1]!.amount : anchor ? amounts[0]!.amount : null;
+  if (!anchor && description.length < 2) return null;
+  return {
+    date,
+    description,
+    amount: chosen.amount,
+    balance,
+    suffix: chosen.suffix,
+    currency: chosen.currency,
+    anchor,
+  };
+}
+
+function directionFromBalance(
+  previous: number | null,
+  balance: number | null,
+  amount: number,
+  suffix: 'dr' | 'cr' | null,
+): 'debit' | 'credit' {
+  if (suffix === 'cr') return 'credit';
+  if (previous != null && balance != null) {
+    const delta = balance - previous;
+    const gap = Math.abs(Math.abs(delta) - amount);
+    if (gap <= 1 || gap / Math.max(amount, 1) <= 0.02) return delta >= 0 ? 'credit' : 'debit';
+  }
+  return 'debit';
+}
+
 export function transactionsFromLines(
   lines: string[],
   source: string,
   defaultCurrency = 'INR',
 ): Transaction[] {
+  const drafts = lines
+    .map((line) => draftFromLine(line))
+    .filter((line): line is DraftLine => line != null);
   const transactions: Transaction[] = [];
-  lines.forEach((line, index) => {
-    if (/narration|withdrawal amt|transaction date/i.test(line) && /date/i.test(line)) return;
-    const parts = line.split(/\s+/).filter(Boolean);
-    const dateIndex = parts.findIndex((part) => isDateToken(part));
-    if (dateIndex < 0) return;
-    const date = parseDate(parts[dateIndex] ?? '', 'auto');
-    if (!date) return;
-    const rest = parts.slice(dateIndex + 1);
-    const descriptionParts: string[] = [];
-    const amounts: { amount: number; suffix: 'dr' | 'cr' | null; currency: string | null }[] = [];
-    for (const part of rest) {
-      if (isDateToken(part) || isReferenceToken(part)) continue;
-      const parsed = parseMoneyCell(part);
-      const looksLikeMoney = parsed && /[.,₹$€£]|[A-Z]{3}|\d+\.\d/.test(part);
-      if (parsed && looksLikeMoney && parsed.amount > 0 && parsed.amount < 10_000_000) {
-        amounts.push(parsed);
-      } else if (amounts.length === 0) descriptionParts.push(part);
+  let previous: number | null = null;
+  drafts.forEach((draft, index) => {
+    if (draft.anchor) {
+      if (draft.balance != null) previous = draft.balance;
+      return;
     }
-    if (amounts.length === 0) return;
-    let chosen = amounts[0]!;
-    if (amounts.length >= 2) {
-      const last = amounts[amounts.length - 1]!;
-      const earlier = amounts[0]!;
-      chosen = last.amount >= earlier.amount ? earlier : last;
-    }
-    const description = descriptionParts.join(' ').trim();
-    if (description.length < 2) return;
+    const direction = directionFromBalance(previous, draft.balance, draft.amount, draft.suffix);
+    if (draft.balance != null) previous = draft.balance;
     transactions.push({
-      id: `${source}:pdf:${index}:${date}`,
-      date,
-      description,
-      amount: chosen.amount,
-      direction: chosen.suffix === 'cr' ? 'credit' : 'debit',
-      currency: chosen.currency ?? defaultCurrency,
+      id: `${source}:pdf:${index}:${draft.date}`,
+      date: draft.date,
+      description: draft.description,
+      amount: draft.amount,
+      direction,
+      currency: draft.currency ?? defaultCurrency,
       source,
     });
   });

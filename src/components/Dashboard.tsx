@@ -5,7 +5,7 @@ import { Dropzone } from '@/components/Dropzone';
 import { SubscriptionCard } from '@/components/SubscriptionCard';
 import { Timeline } from '@/components/Timeline';
 import { Button } from '@/components/chrome';
-import { projectSavings } from '@/lib/engine';
+import { countsInHeadline, projectSavings } from '@/lib/engine';
 import { CATEGORY_META, type Category } from '@/lib/model';
 import { formatMoney } from '@/lib/money';
 import { useWorkspace } from '@/state/workspace';
@@ -49,8 +49,11 @@ export function Dashboard() {
     loadSample,
     saveLocally,
     persist,
+    promoted,
+    promote,
   } = workspace;
-  const savings = projectSavings(analysis, decisions);
+  const promotedSet = useMemo(() => new Set(promoted), [promoted]);
+  const savings = projectSavings(analysis, decisions, promotedSet);
   const shown = useCount(savings.before);
   const [view, setView] = useState<'list' | 'timeline'>('list');
   const [query, setQuery] = useState('');
@@ -61,11 +64,13 @@ export function Dashboard() {
   const [guideId, setGuideId] = useState<string | null>(null);
 
   const active = analysis.subscriptions.filter(
-    (sub) =>
-      !sub.possiblyEnded && sub.kind !== 'possible-transfer' && decisions[sub.id] !== 'ignore',
+    (sub) => countsInHeadline(sub, promotedSet) && decisions[sub.id] !== 'ignore',
   );
   const transfers = analysis.subscriptions.filter(
-    (sub) => sub.kind === 'possible-transfer' && decisions[sub.id] !== 'ignore',
+    (sub) =>
+      sub.kind === 'possible-transfer' &&
+      !promotedSet.has(sub.id) &&
+      decisions[sub.id] !== 'ignore',
   );
   const quiet = analysis.subscriptions.filter(
     (sub) =>
@@ -297,7 +302,12 @@ export function Dashboard() {
                   {sub.name}
                   <span className="text-muted"> · {sub.cadence}</span>
                 </span>
-                <span className="num">{formatMoney(sub.latestAmount, sub.currency)}</span>
+                <span className="flex items-center gap-3">
+                  <button type="button" className="text-accent" onClick={() => promote(sub.id)}>
+                    This is a subscription
+                  </button>
+                  <span className="num">{formatMoney(sub.latestAmount, sub.currency)}</span>
+                </span>
               </li>
             ))}
           </ul>

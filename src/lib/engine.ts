@@ -42,7 +42,8 @@ type Group = {
   autopay: boolean;
 };
 
-const REJECT_WORD = /\b(EMI|LOAN|REPAYMENT|SIP|ATM|SALARY|PAYROLL|DIVIDEND|CAMS|KFIN|RENT)\b/;
+const REJECT_WORD = /\b(EMI|LOAN|REPAYMENT|SIP|ATM|SALARY|PAYROLL|DIVIDEND|CAMS|KFIN)\b/;
+const LOAN_ACCOUNT = /\bLN\d+\b/;
 const REJECT_PHRASES = [
   'MUTUAL FUND',
   'ZERODHA',
@@ -72,8 +73,16 @@ const FEE_RE =
 
 export function isRejectedDescriptor(description: string): boolean {
   const text = normalizeText(description);
-  if (REJECT_WORD.test(text)) return true;
+  if (REJECT_WORD.test(text) || LOAN_ACCOUNT.test(text)) return true;
+  if (isHousingRent(text)) return true;
   return REJECT_PHRASES.some((phrase) => text.includes(phrase));
+}
+
+/** House rent, not a product whose name happens to contain the word. */
+export function isHousingRent(text: string): boolean {
+  if (!/\bRENT\b/.test(text)) return false;
+  if (/\b(SUBSCRIPTION|MEMBERSHIP|RENTAL)\b/.test(text)) return false;
+  return true;
 }
 
 export function isAutopay(description: string): boolean {
@@ -109,10 +118,11 @@ function isLargeTransfer(amount: number, currency: string): boolean {
   return amount >= (LARGE_TRANSFER[currency] ?? 50);
 }
 
-function looksLikePerson(name: string, description: string): boolean {
-  if (/\b(LTD|LIMITED|PVT|PRIVATE|INC|CORP|LLC|BANK|LLP|PVT)\b/.test(normalizeText(description))) {
-    return false;
-  }
+function looksLikePersonTransfer(name: string, description: string): boolean {
+  const text = normalizeText(description);
+  const routed = /\b(UPI|IMPS|NEFT|RTGS)\b/.test(text) || description.includes('@');
+  if (!routed) return false;
+  if (/\b(LTD|LIMITED|PVT|PRIVATE|INC|CORP|LLC|BANK|LLP)\b/.test(text)) return false;
   const tokens = name.split(' ').filter(Boolean);
   if (tokens.length < 2 || tokens.length > 4) return false;
   return tokens.every((token) => /^[A-Za-z][A-Za-z'.-]*$/.test(token));
@@ -397,7 +407,7 @@ export function analyze(transactions: Transaction[], options: AnalyzeOptions = {
       const first = ordered[0]!;
       const person =
         !group.merchant &&
-        looksLikePerson(group.name, first.description) &&
+        looksLikePersonTransfer(group.name, first.description) &&
         isLargeTransfer(latest.amount, group.currency);
       const stale =
         daysBetween(latest.date, today) > periodDays(cadence) * 1.75 && latest.date <= today;
@@ -564,10 +574,19 @@ export type Savings = {
   partial: boolean;
 };
 
-export function projectSavings(analysis: Analysis, decisions: Record<string, Decision>): Savings {
+export function countsInHeadline(sub: Subscription, promoted?: ReadonlySet<string>): boolean {
+  if (sub.possiblyEnded) return false;
+  if (sub.kind === 'possible-transfer' && !promoted?.has(sub.id)) return false;
+  return true;
+}
+
+export function projectSavings(
+  analysis: Analysis,
+  decisions: Record<string, Decision>,
+  promoted?: ReadonlySet<string>,
+): Savings {
   const counted = analysis.subscriptions.filter(
-    (sub) =>
-      !sub.possiblyEnded && sub.kind !== 'possible-transfer' && decisions[sub.id] !== 'ignore',
+    (sub) => countsInHeadline(sub, promoted) && decisions[sub.id] !== 'ignore',
   );
   const partial = counted.some((sub) => sub.annualizedDisplay == null);
   const before = counted.reduce((sum, sub) => sum + (sub.annualizedDisplay ?? 0), 0);

@@ -1,5 +1,5 @@
 import { cadenceLabel } from './dates';
-import { projectSavings } from './engine';
+import { countsInHeadline, projectSavings } from './engine';
 import { CATEGORY_META, type Analysis, type Decision } from './model';
 
 export type ShareMerchant = {
@@ -21,10 +21,11 @@ export function buildSharePayload(
   analysis: Analysis,
   decisions: Record<string, Decision>,
   includeMerchants: boolean,
+  promoted?: ReadonlySet<string>,
 ): SharePayload {
-  const savings = projectSavings(analysis, decisions);
+  const savings = projectSavings(analysis, decisions, promoted);
   const active = analysis.subscriptions.filter(
-    (sub) => !sub.possiblyEnded && decisions[sub.id] !== 'ignore',
+    (sub) => countsInHeadline(sub, promoted) && decisions[sub.id] !== 'ignore',
   );
   const counts = new Map<string, number>();
   for (const sub of active) {

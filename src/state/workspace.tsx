@@ -21,8 +21,8 @@ import { dedupeTransactions } from '@/lib/dedupe';
 import { analyze } from '@/lib/engine';
 import { extractPdf } from '@/lib/pdf';
 import { buildSampleFiles } from '@/lib/sample';
-import { analyzeOffThread, parseOffThread } from '@/lib/scanClient';
-import { spreadsheetToCsv } from '@/lib/spreadsheet';
+import { analyzeOffThread, parseOffThread, parseSpreadsheetOffThread } from '@/lib/scanClient';
+import { createSaveGate } from '@/lib/saveGate';
 import {
   databaseExists,
   idbDelete,
@@ -85,6 +85,8 @@ type WorkspaceValue = {
   remap: (fileId: string) => void;
   removeFile: (fileId: string) => void;
   setDecision: (id: string, decision: Decision) => void;
+  promoted: string[];
+  promote: (id: string) => void;
   saveLocally: () => Promise<void>;
   wipe: () => Promise<void>;
   dismissBanner: (id: string) => void;
@@ -100,6 +102,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [files, setFiles] = useState<FileRecord[]>([]);
   const [decisions, setDecisions] = useState<Record<string, Decision>>({});
+  const [promoted, setPromoted] = useState<string[]>([]);
   const [persist, setPersist] = useState(false);
   const [restored, setRestored] = useState(false);
   const [hydrated, setHydrated] = useState(false);
@@ -108,7 +111,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const [queue, setQueue] = useState<MapJob[]>([]);
   const [passwordAsk, setPasswordAsk] = useState<PasswordAsk | null>(null);
   const [analysisState, setAnalysis] = useState<Analysis>(() => analyze([]));
-  const skipSave = useRef(false);
+  const skipSave = useRef(createSaveGate());
   const saveTimer = useRef<number | null>(null);
 
   const pushBanner = useCallback((tone: Banner['tone'], text: string) => {
@@ -132,6 +135,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
           })),
         );
         setDecisions(saved.decisions);
+        setPromoted(saved.promoted ?? []);
         setPersist(true);
         setRestored(true);
       })
@@ -147,13 +151,14 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   }, [pushBanner]);
 
   useEffect(() => {
-    if (!hydrated || !persist || skipSave.current) return;
+    if (!hydrated || !persist || !skipSave.current.canSave()) return;
     saveTimer.current = window.setTimeout(() => {
-      if (skipSave.current) return;
+      if (!skipSave.current.canSave()) return;
       const snapshot = toSaved({
         transactions,
         files: files.map(({ id, name, formatName, count }) => ({ id, name, formatName, count })),
         decisions,
+        promoted,
       });
       void idbSet(WORKSPACE_KEY, snapshot).catch(() => {
         pushBanner('warn', 'Could not save on this device.');
@@ -162,7 +167,11 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     return () => {
       if (saveTimer.current != null) window.clearTimeout(saveTimer.current);
     };
-  }, [hydrated, persist, transactions, files, decisions, pushBanner]);
+  }, [hydrated, persist, transactions, files, decisions, promoted, pushBanner]);
+
+  useEffect(() => {
+    skipSave.current.noteData(transactions.length);
+  }, [transactions]);
 
   const analyzedLocally = transactions.length < 2000;
   const localAnalysis = useMemo(
@@ -234,10 +243,11 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
             continue;
           }
           const sheet = lower.endsWith('.xlsx') || lower.endsWith('.xls');
-          const text = sheet
-            ? await spreadsheetToCsv(await file.arrayBuffer())
-            : await readFileText(file);
-          const parsed = await parseOffThread(text, id);
+          const loaded = sheet
+            ? await parseSpreadsheetOffThread(await file.arrayBuffer(), id)
+            : { text: await readFileText(file), parsed: null };
+          const text = loaded.text;
+          const parsed = loaded.parsed ?? (await parseOffThread(text, id));
           if (parsed.error) {
             pushBanner('warn', `${file.name}: ${parsed.error}`);
             continue;
@@ -376,23 +386,26 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const saveLocally = useCallback(async () => {
+    skipSave.current.allow();
     setPersist(true);
     const snapshot = toSaved({
       transactions,
       files: files.map(({ id, name, formatName, count }) => ({ id, name, formatName, count })),
       decisions,
+      promoted,
     });
     await idbSet(WORKSPACE_KEY, snapshot);
     pushBanner('info', 'Saved on this device. Nothing was uploaded.');
-  }, [decisions, files, pushBanner, transactions]);
+  }, [decisions, files, promoted, pushBanner, transactions]);
 
   const wipe = useCallback(async () => {
-    skipSave.current = true;
+    skipSave.current.wipe();
     if (saveTimer.current != null) window.clearTimeout(saveTimer.current);
     setPersist(false);
     setTransactions([]);
     setFiles([]);
     setDecisions({});
+    setPromoted([]);
     setRestored(false);
     setQueue([]);
     try {
@@ -437,6 +450,9 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       remap,
       removeFile,
       setDecision: (id, decision) => setDecisions((current) => ({ ...current, [id]: decision })),
+      promoted,
+      promote: (id) =>
+        setPromoted((current) => (current.includes(id) ? current : [...current, id])),
       saveLocally,
       wipe,
       dismissBanner: (id) => setBanners((current) => current.filter((banner) => banner.id !== id)),
@@ -459,6 +475,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       remap,
       removeFile,
       restored,
+      promoted,
       saveLocally,
       transactions,
       wipe,

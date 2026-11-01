@@ -13,6 +13,7 @@ export type SavedWorkspace = {
   transactions: Transaction[];
   files: SavedFile[];
   decisions: Record<string, Decision>;
+  promoted?: string[];
 };
 
 const DB_NAME = 'subsnipe';
@@ -88,5 +89,6 @@ export function toSaved(input: Omit<SavedWorkspace, 'version' | 'savedAt'>): Sav
     transactions: input.transactions,
     files: input.files,
     decisions: input.decisions,
+    promoted: input.promoted ?? [],
   };
 }

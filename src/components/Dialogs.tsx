@@ -245,12 +245,12 @@ function Select({
 }
 
 export function ShareDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const { analysis, decisions } = useWorkspace();
+  const { analysis, decisions, promoted } = useWorkspace();
   const [include, setInclude] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const payload = useMemo(
-    () => buildSharePayload(analysis, decisions, include),
-    [analysis, decisions, include],
+    () => buildSharePayload(analysis, decisions, include, new Set(promoted)),
+    [analysis, decisions, include, promoted],
   );
   const preview = open ? sharePreviewUrl(payload) : '';
 
