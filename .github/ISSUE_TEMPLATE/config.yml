@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Add a merchant the catalog missed
+    url: https://github.com/krish9219/subsnipe/blob/main/CONTRIBUTING.md#add-a-merchant
+    about: Alias rules live in the contributing guide. Open a pull request when you can.

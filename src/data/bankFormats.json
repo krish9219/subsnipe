@@ -1,0 +1,122 @@
+[
+  {
+    "id": "hdfc-savings",
+    "name": "HDFC Bank",
+    "country": "IN",
+    "dateOrder": "DMY",
+    "matchHeaders": ["narration", "withdrawal amt", "deposit amt"],
+    "aliases": {
+      "date": ["date", "value dt", "value date"],
+      "description": ["narration"],
+      "debit": ["withdrawal amt", "withdrawal amount", "withdrawal"],
+      "credit": ["deposit amt", "deposit amount", "deposit"],
+      "balance": ["closing balance"]
+    }
+  },
+  {
+    "id": "hdfc-credit",
+    "name": "HDFC Credit Card",
+    "country": "IN",
+    "dateOrder": "DMY",
+    "matchHeaders": ["transaction description", "debit credit"],
+    "aliases": {
+      "date": ["date"],
+      "description": ["transaction description"],
+      "amount": ["amount"],
+      "direction": ["debit credit", "dr cr"]
+    }
+  },
+  {
+    "id": "sbi",
+    "name": "State Bank of India",
+    "country": "IN",
+    "dateOrder": "DMY",
+    "matchHeaders": ["txn date", "debit", "credit"],
+    "aliases": {
+      "date": ["txn date", "value date"],
+      "description": ["description", "narration"],
+      "debit": ["debit"],
+      "credit": ["credit"],
+      "reference": ["ref no cheque no", "cheque no"]
+    }
+  },
+  {
+    "id": "icici",
+    "name": "ICICI Bank",
+    "country": "IN",
+    "dateOrder": "DMY",
+    "matchHeaders": ["transaction remarks", "withdrawal amount inr", "deposit amount inr"],
+    "aliases": {
+      "date": ["transaction date", "value date"],
+      "description": ["transaction remarks"],
+      "debit": ["withdrawal amount inr", "withdrawal amount"],
+      "credit": ["deposit amount inr", "deposit amount"],
+      "balance": ["balance inr"]
+    }
+  },
+  {
+    "id": "axis",
+    "name": "Axis Bank",
+    "country": "IN",
+    "dateOrder": "DMY",
+    "matchHeaders": ["tran date", "particulars"],
+    "aliases": {
+      "date": ["tran date"],
+      "description": ["particulars"],
+      "debit": ["dr"],
+      "credit": ["cr"],
+      "balance": ["bal"]
+    }
+  },
+  {
+    "id": "kotak",
+    "name": "Kotak Mahindra Bank",
+    "country": "IN",
+    "dateOrder": "DMY",
+    "matchHeaders": ["dr cr"],
+    "aliases": {
+      "date": ["date", "transaction date"],
+      "description": ["description", "narration"],
+      "amount": ["amount"],
+      "direction": ["dr cr", "dr / cr"]
+    }
+  },
+  {
+    "id": "chase",
+    "name": "Chase",
+    "country": "US",
+    "dateOrder": "MDY",
+    "matchHeaders": ["transaction date", "post date", "memo"],
+    "aliases": {
+      "date": ["transaction date", "post date", "posting date"],
+      "description": ["description"],
+      "amount": ["amount"],
+      "direction": ["type"]
+    }
+  },
+  {
+    "id": "amex",
+    "name": "American Express",
+    "country": "US",
+    "dateOrder": "MDY",
+    "matchHeaders": ["appears on your statement as"],
+    "aliases": {
+      "date": ["date"],
+      "description": ["description", "appears on your statement as"],
+      "amount": ["amount"]
+    }
+  },
+  {
+    "id": "generic-debit-credit",
+    "name": "Debit and credit columns",
+    "country": "ZZ",
+    "dateOrder": "auto",
+    "matchHeaders": ["money out", "money in"],
+    "aliases": {
+      "date": ["date", "posted"],
+      "description": ["description", "memo", "details"],
+      "debit": ["money out", "debit", "outflow"],
+      "credit": ["money in", "credit", "inflow"]
+    }
+  }
+]

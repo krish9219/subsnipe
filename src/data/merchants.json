@@ -1,0 +1,625 @@
+[
+  {
+    "id": "netflix",
+    "name": "Netflix",
+    "category": "streaming",
+    "color": "#E50914",
+    "aliases": ["NETFLIX", "NETFLIX COM"],
+    "typicalCadence": "monthly",
+    "website": "https://www.netflix.com"
+  },
+  {
+    "id": "jiohotstar",
+    "name": "JioHotstar",
+    "category": "streaming",
+    "color": "#0B1D36",
+    "aliases": ["JIOHOTSTAR", "JIO HOTSTAR", "DISNEY PLUS HOTSTAR", "DISNEY HOTSTAR", "HOTSTAR"],
+    "typicalCadence": "monthly",
+    "website": "https://www.jiohotstar.com"
+  },
+  {
+    "id": "disney-plus",
+    "name": "Disney+",
+    "category": "streaming",
+    "color": "#113CCF",
+    "aliases": ["DISNEY PLUS", "DISNEY+"],
+    "typicalCadence": "monthly",
+    "website": "https://www.disneyplus.com"
+  },
+  {
+    "id": "amazon-prime",
+    "name": "Amazon Prime",
+    "category": "streaming",
+    "color": "#00A8E1",
+    "aliases": [
+      "AMAZON PRIME",
+      "AMZN PRIME",
+      "PRIME VIDEO",
+      "PRIME MEMBERSHIP",
+      "AMAZON PRIME VIDEO"
+    ],
+    "typicalCadence": "yearly",
+    "website": "https://www.amazon.in/gp/primecentral"
+  },
+  {
+    "id": "sonyliv",
+    "name": "SonyLIV",
+    "category": "streaming",
+    "color": "#F4C400",
+    "aliases": ["SONYLIV", "SONY LIV"],
+    "typicalCadence": "monthly",
+    "website": "https://www.sonyliv.com"
+  },
+  {
+    "id": "zee5",
+    "name": "Zee5",
+    "category": "streaming",
+    "color": "#8230C6",
+    "aliases": ["ZEE5", "ZEE 5"],
+    "typicalCadence": "monthly",
+    "website": "https://www.zee5.com"
+  },
+  {
+    "id": "youtube-premium",
+    "name": "YouTube Premium",
+    "category": "streaming",
+    "color": "#FF0033",
+    "aliases": ["YOUTUBE PREMIUM", "YOUTUBE PREM", "GOOGLE YOUTUBE PREMIUM"],
+    "typicalCadence": "monthly",
+    "website": "https://www.youtube.com/premium"
+  },
+  {
+    "id": "apple-tv",
+    "name": "Apple TV+",
+    "category": "streaming",
+    "color": "#111111",
+    "aliases": ["APPLE TV PLUS", "APPLE TV+"],
+    "typicalCadence": "monthly",
+    "guideId": "apple",
+    "website": "https://tv.apple.com"
+  },
+  {
+    "id": "crunchyroll",
+    "name": "Crunchyroll",
+    "category": "streaming",
+    "color": "#F47521",
+    "aliases": ["CRUNCHYROLL"],
+    "typicalCadence": "monthly",
+    "website": "https://www.crunchyroll.com"
+  },
+  {
+    "id": "mubi",
+    "name": "MUBI",
+    "category": "streaming",
+    "color": "#111111",
+    "aliases": ["MUBI"],
+    "typicalCadence": "monthly",
+    "website": "https://mubi.com"
+  },
+  {
+    "id": "sun-nxt",
+    "name": "Sun NXT",
+    "category": "streaming",
+    "color": "#E8770E",
+    "aliases": ["SUN NXT", "SUNNXT"],
+    "typicalCadence": "monthly",
+    "website": "https://www.sunnxt.com"
+  },
+  {
+    "id": "discovery-plus",
+    "name": "Discovery+",
+    "category": "streaming",
+    "color": "#1A1A1A",
+    "aliases": ["DISCOVERY PLUS", "DISCOVERY+"],
+    "typicalCadence": "monthly",
+    "website": "https://www.discoveryplus.com"
+  },
+  {
+    "id": "lionsgate",
+    "name": "Lionsgate Play",
+    "category": "streaming",
+    "color": "#1A1A1A",
+    "aliases": ["LIONSGATE PLAY", "LIONSGATE"],
+    "typicalCadence": "monthly",
+    "website": "https://www.lionsgateplay.com"
+  },
+  {
+    "id": "spotify",
+    "name": "Spotify",
+    "category": "music",
+    "color": "#1DB954",
+    "aliases": ["SPOTIFY"],
+    "typicalCadence": "monthly",
+    "website": "https://www.spotify.com"
+  },
+  {
+    "id": "youtube-music",
+    "name": "YouTube Music",
+    "category": "music",
+    "color": "#FF0033",
+    "aliases": ["YOUTUBE MUSIC", "YT MUSIC"],
+    "typicalCadence": "monthly",
+    "website": "https://music.youtube.com"
+  },
+  {
+    "id": "apple-music",
+    "name": "Apple Music",
+    "category": "music",
+    "color": "#FA233B",
+    "aliases": ["APPLE MUSIC"],
+    "typicalCadence": "monthly",
+    "guideId": "apple",
+    "website": "https://music.apple.com"
+  },
+  {
+    "id": "jiosaavn",
+    "name": "JioSaavn",
+    "category": "music",
+    "color": "#1DB954",
+    "aliases": ["JIOSAAVN", "SAAVN"],
+    "typicalCadence": "monthly",
+    "website": "https://www.jiosaavn.com"
+  },
+  {
+    "id": "gaana",
+    "name": "Gaana",
+    "category": "music",
+    "color": "#E31E25",
+    "aliases": ["GAANA"],
+    "typicalCadence": "monthly",
+    "website": "https://gaana.com"
+  },
+  {
+    "id": "wynk",
+    "name": "Wynk Music",
+    "category": "music",
+    "color": "#E31E25",
+    "aliases": ["WYNK MUSIC", "WYNK"],
+    "typicalCadence": "monthly",
+    "website": "https://wynk.in"
+  },
+  {
+    "id": "amazon-music",
+    "name": "Amazon Music",
+    "category": "music",
+    "color": "#25D1DA",
+    "aliases": ["AMAZON MUSIC", "AMZN MUSIC"],
+    "typicalCadence": "monthly",
+    "website": "https://music.amazon.in"
+  },
+  {
+    "id": "airtel",
+    "name": "Airtel",
+    "category": "telecom",
+    "color": "#ED1C24",
+    "aliases": ["AIRTEL", "AIRTEL BLACK", "AIRTEL XSTREAM", "AIRTEL THANKS"],
+    "typicalCadence": "monthly",
+    "website": "https://www.airtel.in"
+  },
+  {
+    "id": "jio",
+    "name": "Jio",
+    "category": "telecom",
+    "color": "#0A2885",
+    "aliases": [
+      "JIO PREPAID",
+      "JIO POSTPAID",
+      "JIO FIBER",
+      "JIOFIBER",
+      "RELIANCE JIO",
+      "MYJIO",
+      "JIO MOBILITY",
+      "JIO RECHARGE",
+      "JIO NUMBER"
+    ],
+    "typicalCadence": "monthly",
+    "website": "https://www.jio.com"
+  },
+  {
+    "id": "vi",
+    "name": "Vi",
+    "category": "telecom",
+    "color": "#EE2D24",
+    "aliases": ["VODAFONE", "VI POSTPAID", "VI PREPAID", "VI RECHARGE", "VODAFONE IDEA"],
+    "typicalCadence": "monthly",
+    "website": "https://www.myvi.in"
+  },
+  {
+    "id": "bsnl",
+    "name": "BSNL",
+    "category": "telecom",
+    "color": "#FFCC00",
+    "aliases": ["BSNL"],
+    "typicalCadence": "monthly",
+    "website": "https://www.bsnl.co.in"
+  },
+  {
+    "id": "tata-play",
+    "name": "Tata Play",
+    "category": "telecom",
+    "color": "#0054A6",
+    "aliases": ["TATA PLAY", "TATA SKY", "TATASKY"],
+    "typicalCadence": "monthly",
+    "website": "https://www.tataplay.com"
+  },
+  {
+    "id": "act",
+    "name": "ACT Fibernet",
+    "category": "telecom",
+    "color": "#E31E24",
+    "aliases": ["ACT FIBERNET", "ACT FIBER"],
+    "typicalCadence": "monthly",
+    "website": "https://www.actcorp.in"
+  },
+  {
+    "id": "google-one",
+    "name": "Google One",
+    "category": "cloud",
+    "color": "#4285F4",
+    "aliases": ["GOOGLE ONE", "GOOGLE STORAGE"],
+    "typicalCadence": "monthly",
+    "website": "https://one.google.com"
+  },
+  {
+    "id": "icloud",
+    "name": "iCloud+",
+    "category": "cloud",
+    "color": "#1C1C1E",
+    "aliases": ["ICLOUD", "APPLE ICLOUD"],
+    "typicalCadence": "monthly",
+    "guideId": "apple",
+    "website": "https://www.icloud.com"
+  },
+  {
+    "id": "dropbox",
+    "name": "Dropbox",
+    "category": "cloud",
+    "color": "#0061FF",
+    "aliases": ["DROPBOX"],
+    "typicalCadence": "monthly",
+    "website": "https://www.dropbox.com"
+  },
+  {
+    "id": "microsoft-365",
+    "name": "Microsoft 365",
+    "category": "productivity",
+    "color": "#D83B01",
+    "aliases": ["MICROSOFT 365", "OFFICE 365", "MICROSOFT OFFICE", "M365"],
+    "typicalCadence": "monthly",
+    "website": "https://www.microsoft.com/microsoft-365"
+  },
+  {
+    "id": "adobe",
+    "name": "Adobe",
+    "category": "productivity",
+    "color": "#FF0000",
+    "aliases": ["ADOBE", "ADOBE CREATIVE CLOUD", "ADOBE CC"],
+    "typicalCadence": "monthly",
+    "website": "https://www.adobe.com"
+  },
+  {
+    "id": "notion",
+    "name": "Notion",
+    "category": "productivity",
+    "color": "#111111",
+    "aliases": ["NOTION LABS", "NOTION"],
+    "typicalCadence": "monthly",
+    "website": "https://www.notion.so"
+  },
+  {
+    "id": "canva",
+    "name": "Canva",
+    "category": "productivity",
+    "color": "#7D2AE8",
+    "aliases": ["CANVA"],
+    "typicalCadence": "monthly",
+    "website": "https://www.canva.com"
+  },
+  {
+    "id": "zoom",
+    "name": "Zoom",
+    "category": "productivity",
+    "color": "#0B5CFF",
+    "aliases": ["ZOOM VIDEO", "ZOOM.US", "ZOOM PRO"],
+    "typicalCadence": "monthly",
+    "website": "https://zoom.us"
+  },
+  {
+    "id": "linkedin",
+    "name": "LinkedIn Premium",
+    "category": "productivity",
+    "color": "#0A66C2",
+    "aliases": ["LINKEDIN PREMIUM", "LINKEDIN PREM", "LINKEDIN"],
+    "typicalCadence": "monthly",
+    "website": "https://www.linkedin.com"
+  },
+  {
+    "id": "slack",
+    "name": "Slack",
+    "category": "productivity",
+    "color": "#4A154B",
+    "aliases": ["SLACK"],
+    "typicalCadence": "monthly",
+    "website": "https://slack.com"
+  },
+  {
+    "id": "evernote",
+    "name": "Evernote",
+    "category": "productivity",
+    "color": "#00A82D",
+    "aliases": ["EVERNOTE"],
+    "typicalCadence": "monthly",
+    "website": "https://evernote.com"
+  },
+  {
+    "id": "setapp",
+    "name": "Setapp",
+    "category": "productivity",
+    "color": "#446CD2",
+    "aliases": ["SETAPP"],
+    "typicalCadence": "monthly",
+    "website": "https://setapp.com"
+  },
+  {
+    "id": "apple-one",
+    "name": "Apple One",
+    "category": "productivity",
+    "color": "#111111",
+    "aliases": ["APPLE ONE"],
+    "typicalCadence": "monthly",
+    "guideId": "apple",
+    "website": "https://www.apple.com/apple-one/"
+  },
+  {
+    "id": "chatgpt",
+    "name": "ChatGPT",
+    "category": "ai",
+    "color": "#10A37F",
+    "aliases": ["OPENAI CHATGPT", "CHATGPT", "OPENAI"],
+    "typicalCadence": "monthly",
+    "website": "https://chatgpt.com"
+  },
+  {
+    "id": "claude",
+    "name": "Claude",
+    "category": "ai",
+    "color": "#D97757",
+    "aliases": ["CLAUDE AI", "ANTHROPIC", "CLAUDE PRO"],
+    "typicalCadence": "monthly",
+    "website": "https://claude.ai"
+  },
+  {
+    "id": "gemini",
+    "name": "Google Gemini",
+    "category": "ai",
+    "color": "#4285F4",
+    "aliases": ["GEMINI ADVANCED", "GOOGLE GEMINI"],
+    "typicalCadence": "monthly",
+    "website": "https://gemini.google.com"
+  },
+  {
+    "id": "github-copilot",
+    "name": "GitHub Copilot",
+    "category": "ai",
+    "color": "#111111",
+    "aliases": ["GITHUB COPILOT"],
+    "typicalCadence": "monthly",
+    "website": "https://github.com/features/copilot"
+  },
+  {
+    "id": "the-hindu",
+    "name": "The Hindu",
+    "category": "news",
+    "color": "#0033A0",
+    "aliases": ["THE HINDU"],
+    "typicalCadence": "monthly",
+    "website": "https://www.thehindu.com"
+  },
+  {
+    "id": "et-prime",
+    "name": "ET Prime",
+    "category": "news",
+    "color": "#C4122F",
+    "aliases": ["ET PRIME", "ECONOMIC TIMES PRIME"],
+    "typicalCadence": "monthly",
+    "website": "https://economictimes.indiatimes.com"
+  },
+  {
+    "id": "the-ken",
+    "name": "The Ken",
+    "category": "news",
+    "color": "#111111",
+    "aliases": ["THE KEN"],
+    "typicalCadence": "yearly",
+    "website": "https://the-ken.com"
+  },
+  {
+    "id": "nytimes",
+    "name": "The New York Times",
+    "category": "news",
+    "color": "#111111",
+    "aliases": ["NEW YORK TIMES", "NYTIMES", "NYT"],
+    "typicalCadence": "monthly",
+    "website": "https://www.nytimes.com"
+  },
+  {
+    "id": "cultfit",
+    "name": "cult.fit",
+    "category": "fitness",
+    "color": "#FF3278",
+    "aliases": ["CULT FIT", "CULT.FIT", "CUREFIT", "CURE FIT"],
+    "typicalCadence": "monthly",
+    "website": "https://www.cult.fit"
+  },
+  {
+    "id": "fitpass",
+    "name": "Fitpass",
+    "category": "fitness",
+    "color": "#00B3A4",
+    "aliases": ["FITPASS"],
+    "typicalCadence": "monthly",
+    "website": "https://www.fitpass.co.in"
+  },
+  {
+    "id": "healthify",
+    "name": "Healthify",
+    "category": "fitness",
+    "color": "#E85D04",
+    "aliases": ["HEALTHIFYME", "HEALTHIFY ME", "HEALTHIFY"],
+    "typicalCadence": "monthly",
+    "website": "https://www.healthifyme.com"
+  },
+  {
+    "id": "swiggy-one",
+    "name": "Swiggy One",
+    "category": "food",
+    "color": "#FC8019",
+    "aliases": ["SWIGGY ONE", "SWIGGY SUPER", "SWIGGY ONE LITE"],
+    "typicalCadence": "monthly",
+    "website": "https://www.swiggy.com"
+  },
+  {
+    "id": "zomato-gold",
+    "name": "Zomato Gold",
+    "category": "food",
+    "color": "#E23744",
+    "aliases": ["ZOMATO GOLD", "ZOMATO PRO"],
+    "typicalCadence": "monthly",
+    "website": "https://www.zomato.com"
+  },
+  {
+    "id": "xbox",
+    "name": "Xbox Game Pass",
+    "category": "gaming",
+    "color": "#107C10",
+    "aliases": ["XBOX GAME PASS", "XBOX LIVE", "GAME PASS"],
+    "typicalCadence": "monthly",
+    "website": "https://www.xbox.com/game-pass"
+  },
+  {
+    "id": "playstation",
+    "name": "PlayStation Plus",
+    "category": "gaming",
+    "color": "#003791",
+    "aliases": ["PLAYSTATION PLUS", "PLAYSTATION NETWORK", "PS PLUS"],
+    "typicalCadence": "monthly",
+    "website": "https://www.playstation.com"
+  },
+  {
+    "id": "discord",
+    "name": "Discord Nitro",
+    "category": "gaming",
+    "color": "#5865F2",
+    "aliases": ["DISCORD NITRO"],
+    "typicalCadence": "monthly",
+    "website": "https://discord.com/nitro"
+  },
+  {
+    "id": "play-pass",
+    "name": "Google Play Pass",
+    "category": "gaming",
+    "color": "#34A853",
+    "aliases": ["GOOGLE PLAY PASS", "PLAY PASS"],
+    "typicalCadence": "monthly",
+    "website": "https://play.google.com/about/play-pass"
+  },
+  {
+    "id": "audible",
+    "name": "Audible",
+    "category": "education",
+    "color": "#F8991C",
+    "aliases": ["AUDIBLE"],
+    "typicalCadence": "monthly",
+    "website": "https://www.audible.in"
+  },
+  {
+    "id": "kindle",
+    "name": "Kindle Unlimited",
+    "category": "education",
+    "color": "#111111",
+    "aliases": ["KINDLE UNLIMITED"],
+    "typicalCadence": "monthly",
+    "website": "https://www.amazon.in/kindle-dbs/hz/subscribe/ku"
+  },
+  {
+    "id": "duolingo",
+    "name": "Duolingo",
+    "category": "education",
+    "color": "#58CC02",
+    "aliases": ["DUOLINGO"],
+    "typicalCadence": "monthly",
+    "website": "https://www.duolingo.com"
+  },
+  {
+    "id": "coursera",
+    "name": "Coursera",
+    "category": "education",
+    "color": "#0056D2",
+    "aliases": ["COURSERA"],
+    "typicalCadence": "monthly",
+    "website": "https://www.coursera.org"
+  },
+  {
+    "id": "unacademy",
+    "name": "Unacademy",
+    "category": "education",
+    "color": "#08BD80",
+    "aliases": ["UNACADEMY"],
+    "typicalCadence": "monthly",
+    "website": "https://unacademy.com"
+  },
+  {
+    "id": "truecaller",
+    "name": "Truecaller",
+    "category": "security",
+    "color": "#0E74FB",
+    "aliases": ["TRUECALLER"],
+    "typicalCadence": "monthly",
+    "website": "https://www.truecaller.com"
+  },
+  {
+    "id": "proton",
+    "name": "Proton",
+    "category": "security",
+    "color": "#6D4AFF",
+    "aliases": ["PROTON UNLIMITED", "PROTON MAIL", "PROTON VPN"],
+    "typicalCadence": "monthly",
+    "website": "https://proton.me"
+  },
+  {
+    "id": "nordvpn",
+    "name": "NordVPN",
+    "category": "security",
+    "color": "#4687FF",
+    "aliases": ["NORDVPN", "NORD VPN"],
+    "typicalCadence": "yearly",
+    "website": "https://nordvpn.com"
+  },
+  {
+    "id": "expressvpn",
+    "name": "ExpressVPN",
+    "category": "security",
+    "color": "#DA3940",
+    "aliases": ["EXPRESSVPN", "EXPRESS VPN"],
+    "typicalCadence": "monthly",
+    "website": "https://www.expressvpn.com"
+  },
+  {
+    "id": "1password",
+    "name": "1Password",
+    "category": "security",
+    "color": "#0572EC",
+    "aliases": ["1PASSWORD"],
+    "typicalCadence": "monthly",
+    "website": "https://1password.com"
+  },
+  {
+    "id": "x-premium",
+    "name": "X Premium",
+    "category": "productivity",
+    "color": "#111111",
+    "aliases": ["X PREMIUM", "TWITTER BLUE"],
+    "typicalCadence": "monthly",
+    "website": "https://x.com"
+  }
+]
