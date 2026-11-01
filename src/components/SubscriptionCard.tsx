@@ -150,19 +150,27 @@ export function SubscriptionCard({
                     type="button"
                     role="radio"
                     aria-checked={checked}
+                    tabIndex={checked || (decision === 'ignore' && option.id === 'unsure') ? 0 : -1}
                     onClick={() => onDecision(option.id)}
                     onKeyDown={(event) => {
                       const order = DECISIONS.map((item) => item.id);
                       const current = order.indexOf(option.id);
-                      if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
-                        event.preventDefault();
-                        onDecision(order[(current + 1) % order.length] ?? 'unsure');
-                      }
-                      if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
-                        event.preventDefault();
-                        onDecision(order[(current - 1 + order.length) % order.length] ?? 'unsure');
-                      }
+                      const next =
+                        event.key === 'ArrowRight' || event.key === 'ArrowDown'
+                          ? order[(current + 1) % order.length]
+                          : event.key === 'ArrowLeft' || event.key === 'ArrowUp'
+                            ? order[(current - 1 + order.length) % order.length]
+                            : null;
+                      if (!next) return;
+                      event.preventDefault();
+                      onDecision(next);
+                      const group = event.currentTarget.parentElement;
+                      const target = group?.querySelector<HTMLButtonElement>(
+                        `[data-decision="${next}"]`,
+                      );
+                      target?.focus();
                     }}
+                    data-decision={option.id}
                     className={cn(
                       'rounded-full px-3 py-1.5',
                       checked && option.id === 'cancel' && 'bg-bad text-white',

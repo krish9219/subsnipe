@@ -2,12 +2,14 @@ import { useState } from 'react';
 import { MappingDialog, PrivacyDialog } from '@/components/Dialogs';
 import { Dashboard } from '@/components/Dashboard';
 import { Landing } from '@/components/Landing';
-import { ThemeToggle, Wordmark } from '@/components/chrome';
+import { Button, Modal, ThemeToggle, Wordmark } from '@/components/chrome';
 import { DEMO, REPO } from '@/lib/links';
 import { useWorkspace } from '@/state/workspace';
 
 export default function App() {
-  const { transactions, hydrated, banners, dismissBanner, mapJob } = useWorkspace();
+  const { transactions, hydrated, banners, dismissBanner, mapJob, passwordAsk, answerPassword } =
+    useWorkspace();
+  const [pdfPassword, setPdfPassword] = useState('');
   const [privacy, setPrivacy] = useState(false);
   const scanning = transactions.length > 0;
 
@@ -75,6 +77,31 @@ export default function App() {
       </footer>
       <PrivacyDialog open={privacy} onClose={() => setPrivacy(false)} />
       <MappingDialog job={mapJob} />
+      <Modal open={passwordAsk != null} title="PDF password" onClose={() => answerPassword(null)}>
+        <p className="text-sm text-muted">
+          {passwordAsk?.name} is encrypted. The password stays in this tab and is not uploaded.
+        </p>
+        {passwordAsk?.wrong && (
+          <p className="mt-2 text-sm text-bad">That password did not open the file.</p>
+        )}
+        <input
+          className="field mt-3"
+          type="password"
+          autoComplete="off"
+          value={pdfPassword}
+          onChange={(event) => setPdfPassword(event.target.value)}
+        />
+        <div className="mt-4">
+          <Button
+            onClick={() => {
+              answerPassword(pdfPassword);
+              setPdfPassword('');
+            }}
+          >
+            Unlock
+          </Button>
+        </div>
+      </Modal>
     </div>
   );
 }

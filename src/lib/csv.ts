@@ -1,11 +1,11 @@
 import bankFormats from '../data/bankFormats.json';
-import { parseDate, type DateOrder } from './dates';
+import { inferDateOrder, parseDate, type DateOrder } from './dates';
 import { parseMoneyCell } from './money';
 import type { Direction, Transaction } from './model';
 
 export const LIMITS = {
   maxBytes: 15 * 1024 * 1024,
-  maxRows: 20_000,
+  maxRows: 100_000,
 };
 
 type Field =
@@ -31,6 +31,8 @@ const FIELDS: Field[] = [
   'reference',
 ];
 
+export type SignConvention = 'auto' | 'debit-negative' | 'debit-positive';
+
 type BankFormat = {
   id: string;
   name: string;
@@ -38,6 +40,8 @@ type BankFormat = {
   dateOrder: DateOrder;
   matchHeaders: string[];
   aliases: Partial<Record<Field, string[]>>;
+  defaultCurrency?: string;
+  signConvention?: SignConvention;
 };
 
 const FORMATS = bankFormats as BankFormat[];
@@ -140,6 +144,7 @@ export type ColumnMapping = {
   direction: number | null;
   currency: number | null;
   dateOrder: DateOrder;
+  signConvention: SignConvention;
 };
 
 export type ColumnDetection = {
@@ -149,6 +154,7 @@ export type ColumnDetection = {
   formatId: string | null;
   needsMapping: boolean;
   headers: string[];
+  defaultCurrency: string;
 };
 
 export type StatementParse = {
@@ -174,16 +180,26 @@ export function detectDelimiter(text: string): string {
     .split(/\r?\n/)
     .map((line) => line.trim())
     .filter(Boolean)
-    .slice(0, 15);
+    .slice(0, 40);
   const candidates = [',', ';', '\t', '|'];
   let best = ',';
   let bestScore = -1;
   for (const delimiter of candidates) {
-    const counts = lines.map((line) => countDelimiter(line, delimiter));
-    const first = counts[0] ?? 0;
-    if (first < 1) continue;
-    const consistent = counts.filter((count) => count === first).length;
-    const score = first * 10 + consistent;
+    const counts = lines
+      .map((line) => countDelimiter(line, delimiter))
+      .filter((count) => count > 0);
+    if (counts.length === 0) continue;
+    const frequency = new Map<number, number>();
+    for (const count of counts) frequency.set(count, (frequency.get(count) ?? 0) + 1);
+    let mode = 0;
+    let modeCount = 0;
+    for (const [count, times] of frequency) {
+      if (times > modeCount || (times === modeCount && count > mode)) {
+        mode = count;
+        modeCount = times;
+      }
+    }
+    const score = modeCount * 20 + mode;
     if (score > bestScore) {
       best = delimiter;
       bestScore = score;
@@ -277,6 +293,7 @@ function emptyMapping(headerIndex: number): ColumnMapping {
     direction: null,
     currency: null,
     dateOrder: 'auto',
+    signConvention: 'auto',
   };
 }
 
@@ -357,15 +374,29 @@ export function detectColumns(rows: string[][]): ColumnDetection {
       formatId: null,
       needsMapping: true,
       headers: (rows[0] ?? []).map((_, index) => `Column ${index + 1}`),
+      defaultCurrency: 'INR',
     };
   }
 
   const headers = rows[headerIndex] ?? [];
   const format = matchFormat(headers);
   const mapping = assignColumns(headers, headerIndex);
-  if (format) mapping.dateOrder = format.dateOrder;
+  const defaultCurrency = format?.defaultCurrency ?? 'INR';
+  if (format?.signConvention) mapping.signConvention = format.signConvention;
+  if (format && format.dateOrder !== 'auto') mapping.dateOrder = format.dateOrder;
   const hasAmount = mapping.debit != null || mapping.credit != null || mapping.amount != null;
   let needsMapping = mapping.date == null || mapping.description == null || !hasAmount;
+  if (!needsMapping && mapping.date != null && mapping.dateOrder === 'auto') {
+    const samples = rows
+      .slice(headerIndex + 1)
+      .map((row) => row[mapping.date!] ?? '')
+      .filter(Boolean)
+      .slice(0, 40);
+    const inferred = inferDateOrder(samples);
+    const numeric = samples.some((sample) => /^\d{1,2}[-/.]\d{1,2}[-/.]/.test(sample.trim()));
+    if (inferred === 'ambiguous' && numeric) needsMapping = true;
+    else if (inferred !== 'ambiguous') mapping.dateOrder = inferred;
+  }
   if (!needsMapping && !format) {
     const sample = rows.slice(headerIndex + 1, headerIndex + 13).filter((row) => row.some(Boolean));
     const parsed = sample.filter((row) => parseDate(row[mapping.date!] ?? '', mapping.dateOrder));
@@ -378,6 +409,7 @@ export function detectColumns(rows: string[][]): ColumnDetection {
     formatId: format?.id ?? null,
     needsMapping,
     headers,
+    defaultCurrency,
   };
 }
 
@@ -408,9 +440,11 @@ export function transactionsFromMapping(
 ): { transactions: Transaction[]; warnings: string[] } {
   const warnings: string[] = [];
   const start = mapping.headerIndex >= 0 ? mapping.headerIndex + 1 : 0;
-  const body = rows.slice(start, start + LIMITS.maxRows);
-  if (rows.length - start > LIMITS.maxRows) {
-    warnings.push(`Only the first ${LIMITS.maxRows.toLocaleString('en-IN')} rows were read.`);
+  const allBody = rows.slice(start);
+  const body =
+    allBody.length > LIMITS.maxRows ? allBody.slice(allBody.length - LIMITS.maxRows) : allBody;
+  if (allBody.length > LIMITS.maxRows) {
+    warnings.push(`Kept the most recent ${LIMITS.maxRows.toLocaleString('en-IN')} rows.`);
   }
   const transactions: Transaction[] = [];
   let skipped = 0;
@@ -433,7 +467,7 @@ export function transactionsFromMapping(
     const currencyCell = cell(row, mapping.currency).trim().toUpperCase();
     let direction: Direction | null = null;
     let amount = 0;
-    let currency: string | null = /^[A-Z]{3}$/.test(currencyCell) ? currencyCell : null;
+    let currency: string | null = isIsoCurrency(currencyCell) ? currencyCell : null;
 
     const debit = mapping.debit != null ? parseMoneyCell(cell(row, mapping.debit)) : null;
     const credit = mapping.credit != null ? parseMoneyCell(cell(row, mapping.credit)) : null;
@@ -460,10 +494,7 @@ export function transactionsFromMapping(
       amount = parsed.amount;
       currency = currency ?? parsed.currency;
       const fromColumn = directionFrom(cell(row, mapping.direction));
-      if (fromColumn) direction = fromColumn;
-      else if (parsed.suffix === 'cr') direction = 'credit';
-      else if (parsed.suffix === 'dr') direction = 'debit';
-      else direction = signed ? 'credit' : 'debit';
+      direction = fromColumn ?? signedDirection(parsed.suffix, mapping.signConvention, signed);
     }
 
     if (!direction || amount <= 0 || amount > 10_000_000) {
@@ -485,11 +516,29 @@ export function transactionsFromMapping(
   return { transactions, warnings };
 }
 
+export function isIsoCurrency(value: string): boolean {
+  return /^[A-Z]{3}$/.test(value);
+}
+
+function signedDirection(
+  suffix: 'dr' | 'cr' | null,
+  convention: SignConvention,
+  columnHasNegatives: boolean,
+): Direction {
+  if (suffix === 'cr') return 'credit';
+  const negative = suffix === 'dr';
+  const mode =
+    convention === 'auto' ? (columnHasNegatives ? 'debit-negative' : 'debit-positive') : convention;
+  if (mode === 'debit-negative') return negative ? 'debit' : 'credit';
+  return negative ? 'credit' : 'debit';
+}
+
 export function parseStatement(
   text: string,
   source: string,
   override?: ColumnMapping,
   defaultCurrency = 'INR',
+  delimiter?: string,
 ): StatementParse {
   if (!text.trim()) {
     const detection = detectColumns([]);
@@ -501,7 +550,7 @@ export function parseStatement(
       rows: [],
     };
   }
-  const rows = parseCsv(text);
+  const rows = parseCsv(text, delimiter);
   if (rows.length === 0) {
     return {
       transactions: [],
@@ -526,7 +575,7 @@ export function parseStatement(
     rows,
     mapping,
     source,
-    defaultCurrency,
+    override ? defaultCurrency : detection.defaultCurrency || defaultCurrency,
   );
   return {
     transactions,

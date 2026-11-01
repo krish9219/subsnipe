@@ -61,10 +61,15 @@ export function Dashboard() {
   const [guideId, setGuideId] = useState<string | null>(null);
 
   const active = analysis.subscriptions.filter(
-    (sub) => !sub.possiblyEnded && decisions[sub.id] !== 'ignore',
+    (sub) =>
+      !sub.possiblyEnded && sub.kind !== 'possible-transfer' && decisions[sub.id] !== 'ignore',
+  );
+  const transfers = analysis.subscriptions.filter(
+    (sub) => sub.kind === 'possible-transfer' && decisions[sub.id] !== 'ignore',
   );
   const quiet = analysis.subscriptions.filter(
-    (sub) => sub.possiblyEnded && decisions[sub.id] !== 'ignore',
+    (sub) =>
+      sub.possiblyEnded && sub.kind !== 'possible-transfer' && decisions[sub.id] !== 'ignore',
   );
   const ignored = analysis.subscriptions.filter((sub) => decisions[sub.id] === 'ignore');
   const filtered = useMemo(
@@ -87,13 +92,15 @@ export function Dashboard() {
             <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted">
               Annualized from this scan
             </p>
-            <h1
-              id="spend-heading"
-              className="mt-2 font-serif text-5xl tracking-tight sm:text-7xl"
-              aria-live="polite"
-            >
-              <span className="num">{formatMoney(shown, analysis.displayCurrency, 0)}</span>
+            <h1 id="spend-heading" className="mt-2 font-serif text-5xl tracking-tight sm:text-7xl">
+              <span className="num" aria-hidden="true">
+                {formatMoney(shown, analysis.displayCurrency, 0)}
+              </span>
             </h1>
+            <p className="sr-only" aria-live="polite">
+              {formatMoney(savings.before, analysis.displayCurrency, 0)} a year across{' '}
+              {savings.activeCount} subscriptions
+            </p>
             <p className="mt-2 text-muted">
               a year across {savings.activeCount} subscription{savings.activeCount === 1 ? '' : 's'}
               {analysis.fxApproximate ? ' · other currencies use approximate rates' : ''}
@@ -148,7 +155,7 @@ export function Dashboard() {
               <span className="text-muted"> · {file.count}</span>
               {file.formatName ? <span className="text-muted"> · {file.formatName}</span> : null}
             </span>
-            {file.rows && (
+            {file.rawText && (
               <button
                 type="button"
                 className="text-accent underline-offset-2 hover:underline"
@@ -271,6 +278,40 @@ export function Dashboard() {
         </section>
       )}
 
+      {transfers.length > 0 && (
+        <section className="mt-8" aria-labelledby="transfer-heading">
+          <h2 id="transfer-heading" className="font-serif text-2xl tracking-tight">
+            Possible rent or EMI
+          </h2>
+          <p className="mt-1 text-sm text-muted">
+            Large repeating transfers to a person. They are not counted in the yearly subscription
+            total.
+          </p>
+          <ul className="mt-3 space-y-2 text-sm">
+            {transfers.map((sub) => (
+              <li
+                key={sub.id}
+                className="flex justify-between gap-3 rounded-2xl border border-line px-4 py-3"
+              >
+                <span>
+                  {sub.name}
+                  <span className="text-muted"> · {sub.cadence}</span>
+                </span>
+                <span className="num">{formatMoney(sub.latestAmount, sub.currency)}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {analysis.duplicatePostings.length > 0 && (
+        <p className="mt-6 text-sm text-warn">
+          {analysis.duplicatePostings.length} repeated charge
+          {analysis.duplicatePostings.length === 1 ? '' : 's'} in the same file were kept once for
+          the yearly total and flagged here.
+        </p>
+      )}
+
       <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div
           role="tablist"
@@ -280,9 +321,11 @@ export function Dashboard() {
           {(['list', 'timeline'] as const).map((id) => (
             <button
               key={id}
+              id={`tab-${id}`}
               type="button"
               role="tab"
               aria-selected={view === id}
+              aria-controls={id === 'list' ? 'subscription-list' : 'subscription-timeline'}
               className={`rounded-full px-4 py-1.5 text-sm ${view === id ? 'bg-ink text-bg' : 'text-muted'}`}
               onClick={() => setView(id)}
             >
@@ -318,11 +361,21 @@ export function Dashboard() {
       </div>
 
       {view === 'timeline' ? (
-        <div className="mt-6" role="tabpanel">
+        <div
+          className="mt-6"
+          role="tabpanel"
+          id="subscription-timeline"
+          aria-labelledby="tab-timeline"
+        >
           <Timeline subs={filtered} decisions={decisions} />
         </div>
       ) : (
-        <div className="mt-6 space-y-3" role="tabpanel">
+        <div
+          className="mt-6 space-y-3"
+          role="tabpanel"
+          id="subscription-list"
+          aria-labelledby="tab-list"
+        >
           {filtered.length === 0 && (
             <p className="text-sm text-muted">Nothing matches that filter.</p>
           )}

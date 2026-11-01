@@ -42,10 +42,13 @@ export function buildSharePayload(
     categories,
     approximate: analysis.fxApproximate,
     merchants: includeMerchants
-      ? active.slice(0, 8).map((sub) => ({
-          name: sub.name,
-          detail: `${cadenceLabel(sub.cadence)}`,
-        }))
+      ? active
+          .filter((sub) => sub.known && sub.kind !== 'possible-transfer')
+          .slice(0, 8)
+          .map((sub) => ({
+            name: sub.name,
+            detail: `${cadenceLabel(sub.cadence)}`,
+          }))
       : null,
   };
 }

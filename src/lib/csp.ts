@@ -7,7 +7,6 @@ export const CSP = [
   "default-src 'self'",
   "base-uri 'self'",
   "object-src 'none'",
-  "frame-ancestors 'none'",
   "form-action 'none'",
   "script-src 'self'",
   "style-src 'self' 'unsafe-inline'",

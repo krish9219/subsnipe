@@ -64,7 +64,7 @@
     "name": "YouTube Premium",
     "category": "streaming",
     "color": "#FF0033",
-    "aliases": ["YOUTUBE PREMIUM", "YOUTUBE PREM", "GOOGLE YOUTUBE PREMIUM"],
+    "aliases": ["YOUTUBE PREMIUM", "YOUTUBE PREM", "GOOGLE YOUTUBE PREMIUM", "GOOGLE YOUTUBE"],
     "typicalCadence": "monthly",
     "website": "https://www.youtube.com/premium"
   },
@@ -193,6 +193,7 @@
     "category": "telecom",
     "color": "#ED1C24",
     "aliases": ["AIRTEL", "AIRTEL BLACK", "AIRTEL XSTREAM", "AIRTEL THANKS"],
+    "excludeAliases": ["AIRTEL PAYMENTS BANK", "AIRTEL PAYMENTS"],
     "typicalCadence": "monthly",
     "website": "https://www.airtel.in"
   },
@@ -621,5 +622,45 @@
     "aliases": ["X PREMIUM", "TWITTER BLUE"],
     "typicalCadence": "monthly",
     "website": "https://x.com"
+  },
+  {
+    "id": "apple-bill",
+    "name": "Apple",
+    "category": "productivity",
+    "color": "#111111",
+    "aliases": ["APPLE.COM/BILL", "APPLE COM BILL"],
+    "guideId": "apple",
+    "typicalCadence": "monthly",
+    "website": "https://www.apple.com"
+  },
+  {
+    "id": "google-play",
+    "name": "Google Play",
+    "category": "shopping",
+    "color": "#34A853",
+    "aliases": ["GOOGLE PLAY", "GOOGLE *PLAY*"],
+    "recurringByDefault": false,
+    "typicalCadence": "monthly",
+    "website": "https://play.google.com"
+  },
+  {
+    "id": "google-cloud",
+    "name": "Google Cloud",
+    "category": "cloud",
+    "color": "#4285F4",
+    "aliases": ["GOOGLE CLOUD", "GOOGLE *CLOUD*", "GCP"],
+    "recurringByDefault": false,
+    "typicalCadence": "monthly",
+    "website": "https://cloud.google.com"
+  },
+  {
+    "id": "aws",
+    "name": "Amazon Web Services",
+    "category": "cloud",
+    "color": "#FF9900",
+    "aliases": ["AMAZON WEB SERVICES", "AMAZON AWS", "AWS.AMAZON", "AWS"],
+    "recurringByDefault": false,
+    "typicalCadence": "monthly",
+    "website": "https://aws.amazon.com"
   }
 ]

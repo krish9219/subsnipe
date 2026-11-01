@@ -63,6 +63,22 @@ export async function idbClear(): Promise<void> {
   db.close();
 }
 
+export async function databaseExists(): Promise<boolean> {
+  if (typeof indexedDB === 'undefined' || !indexedDB.databases) return false;
+  const databases = await indexedDB.databases();
+  return databases.some((database) => database.name === DB_NAME);
+}
+
+export async function idbDelete(): Promise<void> {
+  if (!(await databaseExists())) return;
+  await new Promise<void>((resolve, reject) => {
+    const request = indexedDB.deleteDatabase(DB_NAME);
+    request.onsuccess = () => resolve();
+    request.onerror = () => reject(request.error ?? new Error('Could not delete storage'));
+    request.onblocked = () => reject(new Error('Storage is still open in another tab'));
+  });
+}
+
 export const WORKSPACE_KEY = 'workspace';
 
 export function toSaved(input: Omit<SavedWorkspace, 'version' | 'savedAt'>): SavedWorkspace {

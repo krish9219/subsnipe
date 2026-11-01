@@ -8,10 +8,11 @@ type MerchantInput = {
   category: string;
   color: string;
   aliases: string[];
-  typicalCadence?: 'monthly' | 'quarterly' | 'yearly';
+  typicalCadence?: 'weekly' | 'monthly' | 'quarterly' | 'yearly';
   guideId?: string;
   website?: string;
   recurringByDefault?: boolean;
+  excludeAliases?: string[];
 };
 
 export function normalizeText(input: string): string {
@@ -42,6 +43,7 @@ export function loadCatalog(input: MerchantInput[] = merchantData as MerchantInp
       category: merchant.category as Category,
       color: merchant.color,
       aliases: merchant.aliases,
+      excludeAliases: merchant.excludeAliases ?? [],
       recurringByDefault: merchant.recurringByDefault ?? true,
       typicalCadence: merchant.typicalCadence ?? 'monthly',
       guideId: merchant.guideId ?? merchant.id,
@@ -62,6 +64,20 @@ export function matchMerchant(description: string, list = catalog()): Merchant |
   if (!haystack) return null;
   let best: { merchant: Merchant; length: number } | null = null;
   for (const merchant of list) {
+    const blocked = merchant.excludeAliases.some((phrase) =>
+      containsPhrase(haystack, normalizeText(phrase)),
+    );
+    if (blocked) {
+      const rescued = merchant.aliases.some((alias) => {
+        const phrase = normalizeText(alias);
+        return (
+          phrase.length >
+            Math.max(...merchant.excludeAliases.map((item) => normalizeText(item).length)) &&
+          containsPhrase(haystack, phrase)
+        );
+      });
+      if (!rescued) continue;
+    }
     for (const alias of merchant.aliases) {
       const phrase = normalizeText(alias);
       if (phrase.length < 3) continue;
@@ -109,10 +125,26 @@ const STRIP_TOKENS = new Set([
 ]);
 
 export function unknownName(description: string): string {
-  const tokens = normalizeText(description)
-    .split(' ')
-    .filter((token) => token.length > 1 && !STRIP_TOKENS.has(token) && !/^\d+$/.test(token));
-  const name = tokens.slice(0, 4).join(' ');
+  const tokens = description
+    .split(/[^A-Za-z0-9@]+/)
+    .map((part) => part.toUpperCase())
+    .filter(
+      (token) =>
+        token.length > 1 &&
+        !token.includes('@') &&
+        !STRIP_TOKENS.has(token) &&
+        !/^OK[A-Z0-9]{2,}$/.test(token) &&
+        !/^\d+$/.test(token),
+    );
+  const unique: string[] = [];
+  for (const token of tokens) {
+    if (unique[unique.length - 1] !== token) unique.push(token);
+  }
+  const withoutGlued = unique.filter((token, index, all) => {
+    const rest = all.filter((_, item) => item !== index).join('');
+    return token !== rest;
+  });
+  const name = (withoutGlued.length > 0 ? withoutGlued : unique).slice(0, 3).join(' ');
   if (!name) return '';
   return name.toLowerCase().replace(/\b[a-z]/g, (letter) => letter.toUpperCase());
 }

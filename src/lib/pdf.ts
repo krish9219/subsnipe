@@ -1,5 +1,5 @@
 import { parseDate } from './dates';
-import { LIMITS } from './csv';
+import { LIMITS, normalizeHeader } from './csv';
 import { parseMoneyCell } from './money';
 import type { Transaction } from './model';
 
@@ -8,45 +8,105 @@ export type PdfTextItem = {
   transform: number[];
   width?: number;
   height?: number;
+  page?: number;
 };
 
+type Cell = { x: number; text: string; width: number };
+type PdfRow = { y: number; cells: Cell[] };
+type ColumnRole =
+  'date' | 'description' | 'debit' | 'credit' | 'balance' | 'reference' | 'valueDate';
+
 export function itemsToLines(items: PdfTextItem[]): string[] {
-  const positioned = items
-    .filter((item) => item.str.trim().length > 0)
-    .map((item) => ({
-      str: item.str,
-      x: item.transform[4] ?? 0,
-      y: item.transform[5] ?? 0,
-      width: item.width ?? Math.max(item.str.length * 4, 4),
-    }));
-  const lines: { y: number; parts: typeof positioned }[] = [];
-  for (const item of positioned) {
-    const line = lines.find((candidate) => Math.abs(candidate.y - item.y) <= 2.5);
-    if (line) line.parts.push(item);
-    else lines.push({ y: item.y, parts: [item] });
+  const byPage = new Map<number, PdfTextItem[]>();
+  for (const item of items) {
+    const page = item.page ?? 0;
+    byPage.set(page, [...(byPage.get(page) ?? []), item]);
   }
-  lines.sort((a, b) => b.y - a.y);
-  return lines
-    .map((line) => {
-      const parts = [...line.parts].sort((a, b) => a.x - b.x);
-      let text = '';
-      let cursor = -Infinity;
-      for (const part of parts) {
-        const gap = part.x - cursor;
-        if (text && gap > 1.5) text += ' ';
-        text += part.str;
-        cursor = part.x + part.width;
-      }
-      return text.replace(/\s+/g, ' ').trim();
-    })
-    .filter(Boolean);
+  return [...byPage.keys()]
+    .sort((a, b) => a - b)
+    .flatMap((page) => linesOnPage(byPage.get(page) ?? []));
 }
 
-const DATE_RE =
-  /(\d{4}[-/.]\d{1,2}[-/.]\d{1,2}|\d{1,2}[-/.]\d{1,2}[-/.]\d{2,4}|\d{1,2}[ -][A-Za-z]{3,9}[ -]\d{2,4}|[A-Za-z]{3,9}[ -]\d{1,2},?[ -]\d{2,4})/;
+function linesOnPage(items: PdfTextItem[]): string[] {
+  return rowsOnPage(items).map((row) =>
+    [...row.cells]
+      .sort((a, b) => a.x - b.x)
+      .map((cell) => cell.text)
+      .join(' ')
+      .replace(/\s+/g, ' ')
+      .trim(),
+  );
+}
 
-const MONEY_RE =
-  /(?:₹|rs\.?|inr|usd|eur|gbp|\$|€|£)?\s*\(?-?\d[\d,]*(?:\.\d{1,2})?\)?(?:\s*(?:dr|cr))?/gi;
+function rowsOnPage(items: PdfTextItem[]): PdfRow[] {
+  const rows: PdfRow[] = [];
+  for (const item of items) {
+    const text = item.str.trim();
+    if (!text) continue;
+    const x = item.transform[4] ?? 0;
+    const y = item.transform[5] ?? 0;
+    const width = item.width ?? Math.max(text.length * 4, 4);
+    const row = rows.find((candidate) => Math.abs(candidate.y - y) <= 2.5);
+    const cell = { x, text, width };
+    if (row) row.cells.push(cell);
+    else rows.push({ y, cells: [cell] });
+  }
+  rows.sort((a, b) => b.y - a.y);
+  for (const row of rows) row.cells.sort((a, b) => a.x - b.x);
+  return rows;
+}
+
+function roleForHeader(text: string): ColumnRole | null {
+  const normalized = normalizeHeader(text);
+  if (!normalized) return null;
+  if (/value/.test(normalized) && /date|dt/.test(normalized)) return 'valueDate';
+  if (/^(date|transaction date|txn date|tran date)$/.test(normalized)) return 'date';
+  if (/narration|description|particulars|remarks/.test(normalized)) return 'description';
+  if (/withdrawal|debit/.test(normalized)) return 'debit';
+  if (/deposit/.test(normalized) || (normalized === 'credit' && !normalized.includes('debit')))
+    return 'credit';
+  if (/balance|^bal$/.test(normalized)) return 'balance';
+  if (/chq|cheque|ref/.test(normalized)) return 'reference';
+  return null;
+}
+
+function headerColumns(row: PdfRow): { role: ColumnRole; x: number }[] | null {
+  const columns = row.cells
+    .map((cell) => ({ role: roleForHeader(cell.text), x: cell.x }))
+    .filter((column): column is { role: ColumnRole; x: number } => column.role != null);
+  if (!columns.some((column) => column.role === 'date')) return null;
+  if (
+    !columns.some(
+      (column) =>
+        column.role === 'description' || column.role === 'debit' || column.role === 'credit',
+    )
+  ) {
+    return null;
+  }
+  return columns;
+}
+
+function nearestRole(x: number, columns: { role: ColumnRole; x: number }[]): ColumnRole {
+  let best = columns[0]!;
+  let bestDistance = Math.abs(x - best.x);
+  for (const column of columns) {
+    const distance = Math.abs(x - column.x);
+    if (distance < bestDistance) {
+      best = column;
+      bestDistance = distance;
+    }
+  }
+  return best.role;
+}
+
+function isReferenceToken(token: string): boolean {
+  const digits = token.replace(/\D/g, '');
+  return digits.length >= 8 && !/[.,]/.test(token);
+}
+
+function isDateToken(token: string): boolean {
+  return parseDate(token, 'auto') != null;
+}
 
 export function transactionsFromLines(
   lines: string[],
@@ -56,45 +116,99 @@ export function transactionsFromLines(
   const transactions: Transaction[] = [];
   lines.forEach((line, index) => {
     if (/narration|withdrawal amt|transaction date/i.test(line) && /date/i.test(line)) return;
-    const dateMatch = DATE_RE.exec(line);
-    if (!dateMatch || dateMatch.index == null) return;
-    const date = parseDate(dateMatch[1] ?? '', 'auto');
+    const parts = line.split(/\s+/).filter(Boolean);
+    const dateIndex = parts.findIndex((part) => isDateToken(part));
+    if (dateIndex < 0) return;
+    const date = parseDate(parts[dateIndex] ?? '', 'auto');
     if (!date) return;
-    const rest = line.slice(dateMatch.index + dateMatch[0].length);
-    const tokens = [...rest.matchAll(MONEY_RE)]
-      .map((match) => ({
-        raw: match[0],
-        index: match.index ?? 0,
-        parsed: parseMoneyCell(match[0]),
-      }))
-      .filter(
-        (token) => token.parsed && token.parsed.amount > 0 && token.parsed.amount < 10_000_000,
-      );
-    if (tokens.length === 0) return;
-    let chosen = tokens[0]!;
-    if (tokens.length >= 2) {
-      const last = tokens[tokens.length - 1]!;
-      const earlier =
-        tokens.slice(0, -1).find((token) => (token.parsed?.amount ?? 0) > 0) ?? tokens[0]!;
-      chosen = last.parsed!.amount >= earlier.parsed!.amount ? earlier : last;
+    const rest = parts.slice(dateIndex + 1);
+    const descriptionParts: string[] = [];
+    const amounts: { amount: number; suffix: 'dr' | 'cr' | null; currency: string | null }[] = [];
+    for (const part of rest) {
+      if (isDateToken(part) || isReferenceToken(part)) continue;
+      const parsed = parseMoneyCell(part);
+      const looksLikeMoney = parsed && /[.,₹$€£]|[A-Z]{3}|\d+\.\d/.test(part);
+      if (parsed && looksLikeMoney && parsed.amount > 0 && parsed.amount < 10_000_000) {
+        amounts.push(parsed);
+      } else if (amounts.length === 0) descriptionParts.push(part);
     }
-    const description = rest
-      .slice(0, chosen.index)
-      .replace(/[|]+/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim();
-    if (description.length < 2 || !chosen.parsed) return;
+    if (amounts.length === 0) return;
+    let chosen = amounts[0]!;
+    if (amounts.length >= 2) {
+      const last = amounts[amounts.length - 1]!;
+      const earlier = amounts[0]!;
+      chosen = last.amount >= earlier.amount ? earlier : last;
+    }
+    const description = descriptionParts.join(' ').trim();
+    if (description.length < 2) return;
     transactions.push({
-      id: `${source}:pdf:${index}`,
+      id: `${source}:pdf:${index}:${date}`,
       date,
       description,
-      amount: chosen.parsed.amount,
-      direction: chosen.parsed.suffix === 'cr' ? 'credit' : 'debit',
-      currency: chosen.parsed.currency ?? defaultCurrency,
+      amount: chosen.amount,
+      direction: chosen.suffix === 'cr' ? 'credit' : 'debit',
+      currency: chosen.currency ?? defaultCurrency,
       source,
     });
   });
   return transactions;
+}
+
+export function transactionsFromItems(
+  items: PdfTextItem[],
+  source: string,
+  defaultCurrency = 'INR',
+): Transaction[] {
+  const byPage = new Map<number, PdfTextItem[]>();
+  for (const item of items)
+    byPage.set(item.page ?? 0, [...(byPage.get(item.page ?? 0) ?? []), item]);
+  const transactions: Transaction[] = [];
+  for (const page of [...byPage.keys()].sort((a, b) => a - b)) {
+    const rows = rowsOnPage(byPage.get(page) ?? []);
+    const headerIndex = rows.findIndex((row) => headerColumns(row));
+    const columns = headerIndex >= 0 ? headerColumns(rows[headerIndex]!) : null;
+    if (!columns) {
+      transactions.push(
+        ...transactionsFromLines(linesOnPage(byPage.get(page) ?? []), source, defaultCurrency),
+      );
+      continue;
+    }
+    rows.forEach((row, index) => {
+      if (index === headerIndex) return;
+      const buckets = new Map<ColumnRole, string[]>();
+      for (const cell of row.cells) {
+        const role = nearestRole(cell.x, columns);
+        buckets.set(role, [...(buckets.get(role) ?? []), cell.text]);
+      }
+      const date =
+        parseDate((buckets.get('date') ?? []).join(' '), 'DMY') ??
+        parseDate((buckets.get('date') ?? []).join(' '), 'auto');
+      const description = (buckets.get('description') ?? []).join(' ').replace(/\s+/g, ' ').trim();
+      const debit = parseMoneyCell((buckets.get('debit') ?? []).join(' '));
+      const credit = parseMoneyCell((buckets.get('credit') ?? []).join(' '));
+      if (!date || description.length < 2) return;
+      const direction =
+        debit && debit.amount > 0 ? 'debit' : credit && credit.amount > 0 ? 'credit' : null;
+      const parsed = direction === 'debit' ? debit : credit;
+      if (!direction || !parsed || parsed.amount <= 0) return;
+      transactions.push({
+        id: `${source}:pdf:${page}:${index}`,
+        date,
+        description,
+        amount: parsed.amount,
+        direction,
+        currency: parsed.currency ?? defaultCurrency,
+        source,
+      });
+    });
+  }
+  return transactions;
+}
+
+export type PdfPasswordPrompt = (wrong: boolean) => Promise<string | null>;
+
+export function passwordWasWrong(reason: number): boolean {
+  return reason === 2;
 }
 
 export type PdfExtract = {
@@ -103,7 +217,11 @@ export type PdfExtract = {
   error: string | null;
 };
 
-export async function extractPdf(data: ArrayBuffer, source: string): Promise<PdfExtract> {
+export async function extractPdf(
+  data: ArrayBuffer,
+  source: string,
+  askPassword?: PdfPasswordPrompt,
+): Promise<PdfExtract> {
   if (data.byteLength > LIMITS.maxBytes) {
     return {
       transactions: [],
@@ -120,9 +238,19 @@ export async function extractPdf(data: ArrayBuffer, source: string): Promise<Pdf
     const bytes = new Uint8Array(data.byteLength);
     bytes.set(new Uint8Array(data));
     const task = pdfjs.getDocument({ data: bytes, disableFontFace: true, verbosity: 0 });
+    task.onPassword = (updatePassword: (password: string) => void, reason: number) => {
+      if (!askPassword) {
+        void task.destroy();
+        return;
+      }
+      void askPassword(passwordWasWrong(reason)).then((password) => {
+        if (password) updatePassword(password);
+        else void task.destroy();
+      });
+    };
     const doc = await task.promise;
     const pageCount = Math.min(doc.numPages, 25);
-    const warnings: string[] = [];
+    const warnings = ['PDF import is in beta. A CSV export is more reliable.'];
     if (doc.numPages > 25) warnings.push('Only the first 25 pages were read.');
     const items: PdfTextItem[] = [];
     for (let pageNumber = 1; pageNumber <= pageCount; pageNumber += 1) {
@@ -135,12 +263,13 @@ export async function extractPdf(data: ArrayBuffer, source: string): Promise<Pdf
           transform: item.transform,
           width: item.width,
           height: item.height,
+          page: pageNumber,
         });
       }
     }
     await doc.cleanup();
     await task.destroy();
-    const transactions = transactionsFromLines(itemsToLines(items), source);
+    const transactions = transactionsFromItems(items, source);
     if (transactions.length === 0) {
       return {
         transactions: [],
@@ -156,7 +285,7 @@ export async function extractPdf(data: ArrayBuffer, source: string): Promise<Pdf
       return {
         transactions: [],
         warnings: [],
-        error: 'This PDF is password protected. Export a CSV instead.',
+        error: 'This PDF needs a password, and none was provided.',
       };
     }
     return {

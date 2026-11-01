@@ -18,7 +18,7 @@ export const CATEGORIES = [
 
 export type Category = (typeof CATEGORIES)[number];
 
-export type Cadence = 'monthly' | 'quarterly' | 'yearly';
+export type Cadence = 'weekly' | 'monthly' | 'quarterly' | 'yearly';
 
 export type Direction = 'debit' | 'credit';
 
@@ -42,6 +42,7 @@ export type Merchant = {
   category: Category;
   color: string;
   aliases: string[];
+  excludeAliases: string[];
   recurringByDefault: boolean;
   typicalCadence: Cadence;
   guideId: string | null;
@@ -91,6 +92,8 @@ export type Subscription = {
   autopay: boolean;
   guideId: string | null;
   color: string;
+  /** Recurring person-to-person transfers stay out of the yearly headline. */
+  kind: 'subscription' | 'possible-transfer';
 };
 
 export type FeeKind = 'forex' | 'tax' | 'other';
@@ -116,10 +119,20 @@ export type DuplicateGroup = {
   keepCheapestSavings: number | null;
 };
 
+export type DuplicatePosting = {
+  date: string;
+  description: string;
+  amount: number;
+  currency: string;
+  count: number;
+  source: string;
+};
+
 export type Analysis = {
   subscriptions: Subscription[];
   duplicates: DuplicateGroup[];
   fees: FeeFinding[];
+  duplicatePostings: DuplicatePosting[];
   displayCurrency: string;
   fxApproximate: boolean;
   transactionCount: number;

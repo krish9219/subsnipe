@@ -12,7 +12,7 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       injectRegister: false,
-      includeAssets: ['favicon.svg', 'icons/icon-192.png', 'icons/icon-512.png'],
+      includeAssets: [],
       manifest: {
         name: 'SubSnipe',
         short_name: 'SubSnipe',
@@ -33,9 +33,21 @@ export default defineConfig({
         ],
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
+        globPatterns: ['**/*.{js,mjs,css,html,svg,png,woff2}'],
+        globIgnores: ['**/icon-192.png', '**/icon-512.png'],
         navigateFallback: 'index.html',
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
+        manifestTransforms: [
+          (entries) => {
+            const seen = new Set<string>();
+            const manifest = entries.filter((entry) => {
+              if (seen.has(entry.url)) return false;
+              seen.add(entry.url);
+              return true;
+            });
+            return { manifest };
+          },
+        ],
       },
     }),
     {

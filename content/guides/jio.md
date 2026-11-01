@@ -1,7 +1,7 @@
 ---
 merchantId: jio
 title: Stop a Jio autopay
-officialUrl: https://www.jio.com/selfcare/plans/mobility/my-plans/
+officialUrl: https://www.jio.com/selfcare/
 ---
 
 Jio prepaid, postpaid, and fiber plans are managed in MyJio. Autopay is a separate switch from the plan itself.

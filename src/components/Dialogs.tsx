@@ -23,11 +23,11 @@ export function MappingDialog({ job }: { job: MapJob | null }) {
       </Modal>
     );
   }
-  return <MappingForm key={job.fileId} job={job} />;
+  return <MappingForm key={`${job.fileId}:${job.delimiter}`} job={job} />;
 }
 
 function MappingForm({ job }: { job: MapJob }) {
-  const { confirmMapping, skipMapping, mapLeft } = useWorkspace();
+  const { confirmMapping, skipMapping, mapLeft, setJobDelimiter } = useWorkspace();
   const detection = job.detection;
   const [date, setDate] = useState<number | null>(detection.mapping.date);
   const [description, setDescription] = useState<number | null>(detection.mapping.description);
@@ -39,7 +39,8 @@ function MappingForm({ job }: { job: MapJob }) {
   const [credit, setCredit] = useState<number | null>(detection.mapping.credit);
   const [direction, setDirection] = useState<number | null>(detection.mapping.direction);
   const [dateOrder, setDateOrder] = useState<DateOrder>(detection.mapping.dateOrder);
-  const [currency, setCurrency] = useState('INR');
+  const [currency, setCurrency] = useState(detection.defaultCurrency || 'INR');
+  const [flipSigns, setFlipSigns] = useState(false);
 
   const headers = detection?.headers ?? [];
   const previewStart = detection && detection.headerIndex >= 0 ? detection.headerIndex + 1 : 0;
@@ -52,6 +53,12 @@ function MappingForm({ job }: { job: MapJob }) {
 
   function apply() {
     if (date == null || description == null) return;
+    const base = detection.mapping.signConvention;
+    const signConvention = flipSigns
+      ? base === 'debit-positive'
+        ? 'debit-negative'
+        : 'debit-positive'
+      : base;
     const mapping: ColumnMapping = {
       headerIndex: detection.headerIndex,
       date,
@@ -62,8 +69,10 @@ function MappingForm({ job }: { job: MapJob }) {
       direction: mode === 'single' ? direction : null,
       currency: null,
       dateOrder,
+      signConvention,
     };
-    confirmMapping(mapping, currency);
+    const chosen = /^[A-Z]{3}$/.test(currency) ? currency : detection.defaultCurrency || 'INR';
+    confirmMapping(mapping, chosen);
   }
 
   return (
@@ -157,7 +166,31 @@ function MappingForm({ job }: { job: MapJob }) {
                 onChange={(event) => setCurrency(event.target.value.toUpperCase())}
               />
             </Field>
+            <Field label="Delimiter">
+              <select
+                className="field"
+                value={job.delimiter}
+                onChange={(event) => setJobDelimiter(event.target.value)}
+              >
+                <option value=",">Comma</option>
+                <option value=";">Semicolon</option>
+                <option value={'\t'}>Tab</option>
+                <option value="|">Pipe</option>
+              </select>
+            </Field>
           </div>
+          <label className="flex items-start gap-2">
+            <input
+              type="checkbox"
+              className="mt-1"
+              checked={flipSigns}
+              onChange={(event) => setFlipSigns(event.target.checked)}
+            />
+            <span>
+              Flip signs. Use this when charges are positive and payments are negative, or the other
+              way around.
+            </span>
+          </label>
           <div className="flex flex-wrap gap-2 pt-2">
             <Button onClick={apply} disabled={!ready}>
               Use these columns

@@ -2,7 +2,7 @@ import { normalizeText } from './merchants';
 import type { Transaction } from './model';
 
 export function dedupeTransactions(list: Transaction[]): Transaction[] {
-  const seen = new Set<string>();
+  const seen = new Map<string, string>();
   const kept: Transaction[] = [];
   for (const tx of list) {
     const key = [
@@ -12,8 +12,9 @@ export function dedupeTransactions(list: Transaction[]): Transaction[] {
       tx.currency,
       normalizeText(tx.description),
     ].join('|');
-    if (seen.has(key)) continue;
-    seen.add(key);
+    const prior = seen.get(key);
+    if (prior != null && prior !== tx.source) continue;
+    if (prior == null) seen.set(key, tx.source);
     kept.push(tx);
   }
   return kept;

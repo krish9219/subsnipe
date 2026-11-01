@@ -35,7 +35,7 @@ export function Dropzone({ compact = false }: { compact?: boolean }) {
         className="sr-only"
         type="file"
         multiple
-        accept=".csv,.tsv,.txt,.pdf,text/csv,application/pdf"
+        accept=".csv,.tsv,.txt,.pdf,.xlsx,.xls,text/csv,application/pdf,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         aria-label="Choose statement files"
         onChange={(event) => {
           take([...(event.target.files ?? [])]);
@@ -52,11 +52,11 @@ export function Dropzone({ compact = false }: { compact?: boolean }) {
           <FileUp className="mb-3 h-8 w-8 text-accent" aria-hidden="true" />
           <span className="font-serif text-2xl tracking-tight">Drop statements here</span>
           <span className="mt-2 max-w-md text-sm text-muted">
-            CSV is the reliable path. Text-based PDFs are read in the browser with pdf.js when the
-            layout is a simple table. Nothing is uploaded.
+            CSV and Excel are the reliable path. PDF import is in beta: text-based statements only,
+            read locally with pdf.js. Nothing is uploaded.
           </span>
           <span className="mt-4 text-sm font-medium text-accent">
-            {busy ? 'Reading…' : 'Choose CSV or PDF'}
+            {busy ? 'Reading…' : 'Choose CSV, Excel, or PDF'}
           </span>
         </span>
       )}

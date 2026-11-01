@@ -20,10 +20,10 @@ SubSnipe is a static site.
 
 ![Results: a yearly total in rupees, overlaps across streaming and music, and the files that were read locally](docs/screenshots/results-desktop.png)
 
-- Drag in several CSVs. Columns for date, narration, amount, and debit/credit are detected, with a manual mapping when they are not. Presets cover HDFC, ICICI, SBI, Axis, Kotak, Chase, and a generic debit/credit layout.
-- Text-based PDFs are read with pdf.js when a simple table is actually in the file. Scans are not.
+- Drag in several files. CSV and Excel are first-class. Columns for date, narration, amount, and debit/credit are detected, with a manual mapping when they are not (delimiter and a flip-signs control included). Presets cover HDFC, ICICI, SBI, Axis, Kotak, Chase, and American Express, each with a sign convention and a default currency. Large files are parsed in a worker.
+- PDF import is in beta. Text-based statements are read with pdf.js, page by page, and an encrypted file asks for a password that stays in the tab. Scans are not.
 - A **sample statement** (synthetic HDFC savings plus a Chase card) so you can try it with no data of your own.
-- Recurring charges (monthly, quarterly, yearly), price hikes, trials that became paid plans, duplicate plans, and forex or markup lines.
+- Recurring charges (weekly, monthly, quarterly, yearly), price hikes, trials that became paid plans, duplicate plans (including the same service in two currencies), and forex or markup lines.
 - A yearly total, Keep / Cancel / Unsure, and the before/after if you cancel what you marked.
 - Cancel guides for popular services, with official links. India-first narrations (UPI autopay, NACH, Netflix, JioHotstar, Airtel, Jio) and common international ones.
 - Light and dark themes, keyboard access, and a layout that works on a phone.
@@ -33,8 +33,8 @@ SubSnipe is a static site.
 Everything interesting is a pure function in [`src/lib`](src/lib), covered by synthetic fixtures.
 
 1. **Normalize.** Narrations are matched to [`src/data/merchants.json`](src/data/merchants.json). The longest alias wins, on word boundaries, so `JIO HOTSTAR` is not a Jio recharge and `SWIGGY ORDER` is not Swiggy One.
-2. **Recurrence.** Charges for one merchant and currency are grouped into tracks. Gaps of about 30, 91, or 365 days become a cadence. A small amount jitter stays on the same plan. A lasting step up is a price hike. Two different amounts in the same month stay two plans.
-3. **Evidence.** Unknown merchants need three consistent charges, or two when the line looks like a mandate. A single charge counts only for a known subscription brand, and it is marked low confidence. Salary, ATM, EMI, loans, and mutual-fund SIPs are skipped. One-off food orders and marketplace purchases do not become subscriptions.
+2. **Recurrence.** Charges for one merchant and currency are grouped into tracks. Gaps of about 7, 30, 91, or 365 days become a cadence. A small amount jitter stays on the same plan. A lasting step up of at least 5% is a price hike. Two different amounts in the same month stay two plans. The same service billed in two currencies is flagged together.
+3. **Evidence.** Unknown merchants need three consistent charges, or two when the line looks like a mandate. A single charge counts only for a known subscription brand, and it is marked low confidence. Salary, ATM, EMI, loans, insurance premiums, rent, and mutual-fund or clearing debits (ICCL, BSE, CAMS, KFin, Groww, Bajaj Finance, LIC) are skipped. A large repeating transfer to a person is shown as possible rent or EMI and is left out of the yearly total. One-off food orders and marketplace purchases do not become subscriptions.
 4. **Trials and fees.** A tiny or “trial” charge followed within 45 days by the real price is a conversion. Forex, markup, cross-border, and convenience fees are listed on their own and tied to a subscription within three days when one is there.
 5. **Money.** Cards stay in their own currency. The yearly headline converts other currencies with a static table in [`src/lib/money.ts`](src/lib/money.ts), labeled as approximate. It is not a live rate and not advice.
 
@@ -74,7 +74,7 @@ GitHub Actions runs lint, types, unit tests, Playwright, and a production build 
 
 ## Limits
 
-Detection is a heuristic. A loan EMI can look monthly. A single month of history is a weaker read than a year, and known brands with one charge are marked that way. PDF extraction only sees text embedded in the file, not a photographed statement. Exchange rates in the yearly total are a fixed display table. Nothing here is financial advice.
+Detection is a heuristic. A transfer that does not look like rent, a loan, or a SIP can still be wrong. A single month of history is a weaker read than a year, and known brands with one charge are marked that way. PDF import is in beta: it only sees text embedded in the file, not a photographed statement, and unusual layouts should be exported as CSV. Exchange rates in the yearly total are a fixed display table. Nothing here is financial advice.
 
 ## License
 

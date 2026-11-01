@@ -1,7 +1,7 @@
 ---
 merchantId: notion
 title: Cancel Notion
-officialUrl: https://www.notion.com/help/cancel-your-subscription
+officialUrl: https://www.notion.com/help/upgrade-or-downgrade-your-plan
 ---
 
 Notion billing sits in Settings for the workspace, and only an admin can cancel it.

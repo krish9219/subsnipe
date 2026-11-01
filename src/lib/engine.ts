@@ -42,8 +42,27 @@ type Group = {
   autopay: boolean;
 };
 
-const REJECT_RE =
-  /\b(EMI|LOAN|REPAYMENT|MUTUAL FUNDS?|ZERODHA|GROWW|UPSTOX|SIP|RD INSTALL|RECURRING DEPOSIT|ATM|CASH WDL|CASH WITHDRAW\w*|SALARY|PAYROLL|INTEREST(?:\s+CREDIT)?|DIVIDEND)\b/i;
+const REJECT_WORD = /\b(EMI|LOAN|REPAYMENT|SIP|ATM|SALARY|PAYROLL|DIVIDEND|CAMS|KFIN|RENT)\b/;
+const REJECT_PHRASES = [
+  'MUTUAL FUND',
+  'ZERODHA',
+  'GROWW',
+  'UPSTOX',
+  'RECURRING DEPOSIT',
+  'CASH WDL',
+  'CASH WITHDRAW',
+  'ICCL',
+  'INDIAN CLEARING',
+  'BSE LIMITED',
+  'NSE CLEARING',
+  'NSE LIMITED',
+  'BAJAJ FIN',
+  'BAJAJFIN',
+  'LIC OF INDIA',
+  'HDFC LIFE',
+  'INSURANCE PREMIUM',
+  'HOUSE RENT',
+];
 
 const AUTOPAY_RE =
   /\b(AUTOPAY|AUTO[\s-]?PAY|MANDATE|NACH|STANDING INSTRUCTION|RECURRING PAYMENT)\b/i;
@@ -52,7 +71,9 @@ const FEE_RE =
   /\b(?:FOREX|FX MARKUP|FX MARGIN|FX FEE|FOREIGN CURRENCY|FOREIGN TXN(?: FEE)?|FOREIGN TRANSACTION(?: FEE)?|INTL TXN FEE|INTL FEE|INTERNATIONAL TXN FEE|INTERNATIONAL TRANSACTION FEE|CROSS[\s-]?BORDER(?: FEE)?|DYNAMIC CURRENCY|DCC|CURRENCY CONVERSION(?: FEE)?|MARKUP FEE|GST ON (?:FOREX|FX)|FCY FEE|CONVENIENCE FEE|PLATFORM FEE|PROCESSING FEE|CONVERSION FEE)\b/i;
 
 export function isRejectedDescriptor(description: string): boolean {
-  return REJECT_RE.test(description);
+  const text = normalizeText(description);
+  if (REJECT_WORD.test(text)) return true;
+  return REJECT_PHRASES.some((phrase) => text.includes(phrase));
 }
 
 export function isAutopay(description: string): boolean {
@@ -61,15 +82,6 @@ export function isAutopay(description: string): boolean {
 
 export function isFeeDescription(description: string): boolean {
   return FEE_RE.test(description);
-}
-
-function samePosting(a: string, b: string): boolean {
-  const clean = (value: string) =>
-    normalizeText(value)
-      .replace(/\b\d+\b/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim();
-  return clean(a) === clean(b);
 }
 
 function feeKind(description: string): FeeKind {
@@ -85,9 +97,25 @@ function feeKind(description: string): FeeKind {
 }
 
 function periodDays(cadence: Cadence): number {
+  if (cadence === 'weekly') return 7;
   if (cadence === 'monthly') return 30;
   if (cadence === 'quarterly') return 91;
   return 365;
+}
+
+const LARGE_TRANSFER: Record<string, number> = { INR: 2000, USD: 25, EUR: 25, GBP: 20, JPY: 3000 };
+
+function isLargeTransfer(amount: number, currency: string): boolean {
+  return amount >= (LARGE_TRANSFER[currency] ?? 50);
+}
+
+function looksLikePerson(name: string, description: string): boolean {
+  if (/\b(LTD|LIMITED|PVT|PRIVATE|INC|CORP|LLC|BANK|LLP|PVT)\b/.test(normalizeText(description))) {
+    return false;
+  }
+  const tokens = name.split(' ').filter(Boolean);
+  if (tokens.length < 2 || tokens.length > 4) return false;
+  return tokens.every((token) => /^[A-Za-z][A-Za-z'.-]*$/.test(token));
 }
 
 export function inferCadence(dates: string[]): Cadence | null {
@@ -121,19 +149,32 @@ function amountsLookRecurring(amounts: number[], currency: string): boolean {
   return true;
 }
 
-function suppressDoublePosts(debits: Transaction[]): Transaction[] {
-  const sorted = [...debits].sort((a, b) => a.date.localeCompare(b.date) || a.amount - b.amount);
-  const kept: Transaction[] = [];
-  for (const debit of sorted) {
-    const duplicate = kept.some(
-      (existing) =>
-        samePosting(existing.description, debit.description) &&
-        isClose(existing.amount, debit.amount, debit.currency) &&
-        Math.abs(daysBetween(existing.date, debit.date)) <= 2,
-    );
-    if (!duplicate) kept.push(debit);
+function peelSameFileDuplicates(debits: Transaction[]): {
+  primary: Transaction[];
+  duplicates: import('./model').DuplicatePosting[];
+} {
+  const groups = new Map<string, Transaction[]>();
+  for (const debit of debits) {
+    const key = `${debit.source}|${debit.date}|${debit.amount.toFixed(2)}|${normalizeText(debit.description)}`;
+    groups.set(key, [...(groups.get(key) ?? []), debit]);
   }
-  return kept;
+  const primary: Transaction[] = [];
+  const duplicates: import('./model').DuplicatePosting[] = [];
+  for (const list of groups.values()) {
+    primary.push(list[0]!);
+    if (list.length > 1) {
+      const first = list[0]!;
+      duplicates.push({
+        date: first.date,
+        description: first.description,
+        amount: first.amount,
+        currency: first.currency,
+        count: list.length,
+        source: first.source,
+      });
+    }
+  }
+  return { primary, duplicates };
 }
 
 function applyRefunds(debits: Transaction[], credits: Transaction[]): Transaction[] {
@@ -321,12 +362,15 @@ export function analyze(transactions: Transaction[], options: AnalyzeOptions = {
   });
 
   const subscriptions: Subscription[] = [];
+  const duplicatePostings: import('./model').DuplicatePosting[] = [];
 
   for (const group of groups.values()) {
     const refunded = applyRefunds(group.debits, group.credits);
-    const debits = suppressDoublePosts(refunded).filter(
-      (debit) => debit.amount >= noiseFloor(group.currency),
+    const peeled = peelSameFileDuplicates(
+      refunded.filter((debit) => debit.amount >= noiseFloor(group.currency)),
     );
+    duplicatePostings.push(...peeled.duplicates);
+    const debits = peeled.primary;
     const trial = detectTrial(group.debits, group.currency);
     const tracks = buildTracks(debits);
     tracks.forEach((track, trackIndex) => {
@@ -338,6 +382,11 @@ export function analyze(transactions: Transaction[], options: AnalyzeOptions = {
       let confidence: Subscription['confidence'] = ordered.length >= 3 ? 'high' : 'medium';
       if (!cadence) {
         if (!(group.merchant?.recurringByDefault && ordered.length === 1)) return;
+        const lone = ordered[0]!;
+        const nearFragment = debits.some(
+          (debit) => debit !== lone && Math.abs(daysBetween(debit.date, lone.date)) <= 20,
+        );
+        if (nearFragment) return;
         cadence = group.merchant?.typicalCadence ?? 'monthly';
         assumedCadence = true;
         confidence = 'low';
@@ -346,10 +395,14 @@ export function analyze(transactions: Transaction[], options: AnalyzeOptions = {
       }
       const latest = ordered[ordered.length - 1]!;
       const first = ordered[0]!;
+      const person =
+        !group.merchant &&
+        looksLikePerson(group.name, first.description) &&
+        isLargeTransfer(latest.amount, group.currency);
       const stale =
         daysBetween(latest.date, today) > periodDays(cadence) * 1.75 && latest.date <= today;
-      const medianAmount = median(amounts);
-      const id = `${group.merchantId}|${group.currency}|${cadence}|${Math.round(medianAmount)}|${trackIndex}`;
+      let id = `${group.merchantId}|${group.currency}|${cadence}|${Math.round(first.amount)}|${first.date}`;
+      if (subscriptions.some((existing) => existing.id === id)) id = `${id}|${trackIndex}`;
       subscriptions.push({
         id,
         merchantId: group.merchantId,
@@ -385,19 +438,24 @@ export function analyze(transactions: Transaction[], options: AnalyzeOptions = {
         autopay: group.autopay,
         guideId: group.guideId,
         color: group.color,
+        kind: person ? 'possible-transfer' : 'subscription',
       });
     });
   }
 
   markReplaced(subscriptions);
 
-  const { currency: displayCurrency, approximate } = chooseDisplayCurrency(subscriptions);
+  const { currency: displayCurrency, approximate } = chooseDisplayCurrency(
+    subscriptions.filter((sub) => sub.kind !== 'possible-transfer'),
+  );
   for (const sub of subscriptions) {
     sub.annualizedDisplay = convert(sub.annualized, sub.currency, displayCurrency);
   }
 
   const linkedFees = linkFees(fees, subscriptions);
-  const duplicates = findDuplicates(subscriptions.filter((sub) => !sub.possiblyEnded));
+  const duplicates = findDuplicates(
+    subscriptions.filter((sub) => !sub.possiblyEnded && sub.kind !== 'possible-transfer'),
+  );
   const usedCharges = subscriptions.reduce((sum, sub) => sum + sub.charges.length, 0);
 
   subscriptions.sort((a, b) => (b.annualizedDisplay ?? 0) - (a.annualizedDisplay ?? 0));
@@ -406,6 +464,7 @@ export function analyze(transactions: Transaction[], options: AnalyzeOptions = {
     subscriptions,
     duplicates,
     fees: linkedFees.sort((a, b) => b.date.localeCompare(a.date)),
+    duplicatePostings,
     displayCurrency,
     fxApproximate: approximate,
     transactionCount: transactions.length,
@@ -450,7 +509,7 @@ function findDuplicates(subscriptions: Subscription[]): DuplicateGroup[] {
   const byMerchant = new Map<string, Subscription[]>();
   for (const sub of subscriptions) {
     byCategory.set(sub.category, [...(byCategory.get(sub.category) ?? []), sub]);
-    const key = `${sub.merchantId}|${sub.currency}`;
+    const key = sub.merchantId;
     byMerchant.set(key, [...(byMerchant.get(key) ?? []), sub]);
   }
 
@@ -475,7 +534,7 @@ function findDuplicates(subscriptions: Subscription[]): DuplicateGroup[] {
     if (subs.length < 2) continue;
     const first = subs[0]!;
     groups.push({
-      id: `merchant:${first.merchantId}:${first.currency}`,
+      id: `merchant:${first.merchantId}`,
       kind: 'merchant',
       severity: 'likely',
       category: first.category,
@@ -507,7 +566,8 @@ export type Savings = {
 
 export function projectSavings(analysis: Analysis, decisions: Record<string, Decision>): Savings {
   const counted = analysis.subscriptions.filter(
-    (sub) => !sub.possiblyEnded && decisions[sub.id] !== 'ignore',
+    (sub) =>
+      !sub.possiblyEnded && sub.kind !== 'possible-transfer' && decisions[sub.id] !== 'ignore',
   );
   const partial = counted.some((sub) => sub.annualizedDisplay == null);
   const before = counted.reduce((sum, sub) => sum + (sub.annualizedDisplay ?? 0), 0);

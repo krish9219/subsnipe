@@ -61,8 +61,11 @@ describe('sample statements', () => {
     expect(analysis.subscriptions.some((sub) => /swiggy order/i.test(sub.name))).toBe(false);
   });
 
-  it('dedupes a second import of the same file', () => {
-    const again = dedupeTransactions([...transactions, ...transactions]);
-    expect(again).toHaveLength(transactions.length);
+  it('dedupes overlapping rows only when they come from another file', () => {
+    const otherFile = transactions.map((tx) => ({ ...tx, id: `${tx.id}-b`, source: 'other-file' }));
+    expect(dedupeTransactions([...transactions, ...otherFile])).toHaveLength(transactions.length);
+    expect(dedupeTransactions([...transactions, ...transactions])).toHaveLength(
+      transactions.length * 2,
+    );
   });
 });

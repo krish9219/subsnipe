@@ -40,5 +40,13 @@
   ["ATM CASH WDL", null],
   ["SALARY NEFT CREDIT", null],
   ["UBER TRIP", null],
-  ["BIGBASKET ORDER", null]
+  ["BIGBASKET ORDER", null],
+  ["APPLE.COM/BILL", "apple-bill"],
+  ["GOOGLE *YOUTUBE*", "youtube-premium"],
+  ["GOOGLE PLAY", "google-play"],
+  ["AMAZON WEB SERVICES", "aws"],
+  ["AWS", "aws"],
+  ["GOOGLE CLOUD", "google-cloud"],
+  ["AIRTEL PAYMENTS BANK", null],
+  ["NACH-AIRTEL POSTPAID", "airtel"]
 ]

@@ -62,9 +62,10 @@ export function isStep(from: number, to: number, currency: string): boolean {
 }
 
 export function isMaterialIncrease(from: number, to: number, currency: string): boolean {
-  if (to <= from) return false;
+  if (to <= from || from <= 0) return false;
   const diff = to - from;
-  return diff / Math.max(from, 0.01) >= 0.08 && diff > moneyFloor(currency);
+  const minimum = currency === 'JPY' ? 5 : 0.5;
+  return diff / from >= 0.05 && diff >= minimum;
 }
 
 export function convert(amount: number, from: string, to: string): number | null {
@@ -170,7 +171,11 @@ export function median(values: number[]): number {
   return (sorted[mid - 1]! + sorted[mid]!) / 2;
 }
 
-export function annualize(amount: number, cadence: 'monthly' | 'quarterly' | 'yearly'): number {
+export function annualize(
+  amount: number,
+  cadence: 'weekly' | 'monthly' | 'quarterly' | 'yearly',
+): number {
+  if (cadence === 'weekly') return amount * 52;
   if (cadence === 'monthly') return amount * 12;
   if (cadence === 'quarterly') return amount * 4;
   return amount;

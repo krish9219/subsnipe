@@ -48,8 +48,36 @@ export function toISODate(year: number, month: number, day: number): string | nu
   return `${pad(year, 4)}-${pad(month)}-${pad(day)}`;
 }
 
+export function stripDateTime(raw: string): string {
+  return raw
+    .trim()
+    .replace(/,/g, ' ')
+    .replace(/\s+/g, ' ')
+    .replace(/\s+\d{1,2}:\d{2}(?::\d{2})?(?:\s*[AP]M)?$/i, '')
+    .trim();
+}
+
+/** One order for a whole column. Ambiguous when every numeric date could be either way, or the rows disagree. */
+export function inferDateOrder(values: string[]): 'DMY' | 'MDY' | 'ambiguous' {
+  let dmy = 0;
+  let mdy = 0;
+  for (const raw of values) {
+    const value = stripDateTime(raw);
+    const match = /^(\d{1,2})[-/.](\d{1,2})[-/.](\d{2,4})/.exec(value);
+    if (!match) continue;
+    const first = Number(match[1]);
+    const second = Number(match[2]);
+    if (first > 12 && second <= 12) dmy += 1;
+    else if (second > 12 && first <= 12) mdy += 1;
+  }
+  if (dmy > 0 && mdy > 0) return 'ambiguous';
+  if (mdy > 0) return 'MDY';
+  if (dmy > 0) return 'DMY';
+  return 'ambiguous';
+}
+
 export function parseDate(raw: string, order: DateOrder = 'auto'): string | null {
-  const value = raw.trim().replace(/,/g, ' ').replace(/\s+/g, ' ');
+  const value = stripDateTime(raw);
   if (!value) return null;
 
   let match = /^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})\b/.exec(value);
@@ -116,6 +144,15 @@ export function shiftMonth(today: Date, delta: number, day: number): string | nu
 }
 
 export function projectNext(last: string, cadence: Cadence, today: string): string {
+  if (cadence === 'weekly') {
+    let next = addDaysISO(last, 7);
+    let guard = 0;
+    while (next <= today && guard < 520) {
+      next = addDaysISO(next, 7);
+      guard += 1;
+    }
+    return next;
+  }
   const step = cadence === 'monthly' ? 1 : cadence === 'quarterly' ? 3 : 12;
   let next = addMonthsISO(last, step);
   let guard = 0;
@@ -138,12 +175,14 @@ export function formatDisplayDate(iso: string): string {
 }
 
 export function cadenceLabel(cadence: Cadence): string {
+  if (cadence === 'weekly') return 'Weekly';
   if (cadence === 'monthly') return 'Monthly';
   if (cadence === 'quarterly') return 'Quarterly';
   return 'Yearly';
 }
 
 export function cadenceNoun(cadence: Cadence): string {
+  if (cadence === 'weekly') return 'week';
   if (cadence === 'monthly') return 'month';
   if (cadence === 'quarterly') return 'quarter';
   return 'year';
@@ -151,8 +190,9 @@ export function cadenceNoun(cadence: Cadence): string {
 
 export function classifyGap(
   days: number,
-): 'monthly' | 'monthly-skip' | 'quarterly' | 'yearly' | null {
+): 'weekly' | 'monthly' | 'monthly-skip' | 'quarterly' | 'yearly' | null {
   const gap = Math.abs(days);
+  if (gap >= 6 && gap <= 9) return 'weekly';
   if (gap >= 26 && gap <= 35) return 'monthly';
   if (gap >= 54 && gap <= 70) return 'monthly-skip';
   if (gap >= 80 && gap <= 100) return 'quarterly';
