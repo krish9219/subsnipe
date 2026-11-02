@@ -1,0 +1,40 @@
+name: Add my bank format
+description: A statement export SubSnipe does not recognize yet.
+title: '[Bank format] '
+labels: ['bank-format']
+body:
+  - type: input
+    id: bank
+    attributes:
+      label: Bank or card
+      placeholder: HDFC Bank savings, Chase credit, …
+    validations:
+      required: true
+  - type: input
+    id: country
+    attributes:
+      label: Country
+      placeholder: IN
+    validations:
+      required: true
+  - type: textarea
+    id: header
+    attributes:
+      label: Header row only
+      description: Paste the header row and one synthetic data row you typed yourself. Do not paste a real statement.
+      placeholder: |
+        Date,Narration,Withdrawal Amt.,Deposit Amt.,Closing Balance
+        04/01/2026,EXAMPLE MERCHANT,499.00,,10000.00
+    validations:
+      required: true
+  - type: dropdown
+    id: dates
+    attributes:
+      label: Date order
+      options:
+        - Day / month / year
+        - Month / day / year
+        - Year-month-day
+        - Not sure
+    validations:
+      required: true

@@ -1,0 +1,32 @@
+name: Add a cancel guide
+description: Steps to cancel a service, with the official page.
+title: '[Cancel guide] '
+labels: ['cancel-guide']
+body:
+  - type: input
+    id: service
+    attributes:
+      label: Service
+      placeholder: Netflix
+    validations:
+      required: true
+  - type: input
+    id: url
+    attributes:
+      label: Official cancel or account URL
+      description: Must be an https page run by the service, not a blog.
+      placeholder: https://www.netflix.com/cancelplan
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps you verified
+      description: Write them in your own words. Say who gets billed if Apple, Google, or a telecom bundle is involved.
+    validations:
+      required: true
+  - type: textarea
+    id: india
+    attributes:
+      label: India-specific note
+      description: UPI autopay, NACH, or operator billing, if that applies. Leave blank if you only checked another country.
